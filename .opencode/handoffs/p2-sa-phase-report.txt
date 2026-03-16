@@ -1,0 +1,395 @@
+===PHASE REPORT===
+Phase   : P2
+Agent   : ats-system-architect
+Task ID : ATS-P2-SYSTEM-DESIGN
+Status  : COMPLETE
+
+[OUTPUT]
+
+## Output 1 — Architecture Overview
+
+### System Context
+- **Monorepo**: 5 deployable units orchestrated via Docker Compose
+  - `apps/main` — Next.js 14 (HR / Supervisor / Admin portal, port 3000)
+  - `apps/portal` — Next.js 14 (Applicant-facing portal, port 3001)
+  - `services/go-api` — Go 1.22 / Gin (REST API, port 8080)
+  - `ai-service` — Python FastAPI (OCR + Embedding + Matching, port 8000)
+  - `packages/shared` — Shared TypeScript types + design tokens (internal package)
+
+### Infrastructure
+- **PostgreSQL 15** — Primary data store (all migrations in `migrations/`)
+- **Redis 7** — JWT blacklist, session store, pub/sub for notifications
+- **Docker Compose** — Full service topology with health checks and dependency ordering
+
+### Communication Pattern
+- Frontend apps → Go API (REST over HTTP)
+- Go API → AI Service (internal HTTP, async for OCR)
+- Go API → PostgreSQL (pgx driver)
+- Go API → Redis (session/JWT blacklist)
+- Go API → SMTP (email via gomail)
+- AI Service → Go API callback (OCR result webhook)
+
+### Key Architectural Patterns
+- **Action-based Pipeline**: HR selects actions freely — not a fixed linear flow
+  - `Resume Review → Test and/or Interview (multiple rounds) → Hire / Drop / Transfer`
+- **pipeline_actions table**: Central orchestration — one row per HR action, with round_number and phase tracking
+- **Async OCR**: Resume upload triggers Go worker → FastAPI OCR → callback to Go API
+- **Embedding Pipeline**: Job publish triggers JD+skill embedding via FastAPI; candidate resume OCR triggers resume embedding; match scores computed on-demand
+
+---
+
+## Output 2 — Database Schema
+
+### Migration Files
+1. `migrations/20260316000000_ats_m01_m05_initial.sql` — 13 base tables
+2. `migrations/20260316000001_ats_additive.sql` — Consolidated additive (M01-M15 extensions + 22 new tables)
+
+### Complete Table Inventory (35 tables total)
+
+**Initial Schema (13 tables):**
+| Table | Module | Purpose |
+|-------|--------|---------|
+| departments | M01 | Org chart hierarchy |
+| employment_types | M04 | Full-time / Part-time / Contract |
+| experience_levels | M04 | Entry / Mid / Senior / Lead |
+| hard_skills | M04/M06 | Skills dictionary for JD matching |
+| users | M01/M02 | HR / Supervisor / Admin accounts |
+| otp_logs | M02 | OTP records for password reset |
+| jobs | M04 | Job postings with scheduling |
+| job_hard_skills | M04 | Junction: job ↔ hard_skill with weight |
+| forms | M05 | Form definitions (JSON schema) |
+| candidates | M03/M11 | Applicant records |
+| applications | M03 | One application per candidate per job |
+| application_documents | M03 | Uploaded files (resume, etc.) with OCR tracking |
+| form_submissions | M03/M05 | Submitted form data (JSONB) |
+
+**Additive Schema (22 new tables):**
+| Table | Module | Purpose |
+|-------|--------|---------|
+| position_marks | M06 | HR marks up to 3 suitable positions |
+| job_embeddings | M06/M14 | JD + skill vector per job (JSONB) |
+| candidate_embeddings | M06/M10 | Resume text vector per candidate (JSONB) |
+| blacklist_logs | M11 | Audit trail for blacklist/unblacklist |
+| pipeline_actions | M06-M08 | Central action orchestration table |
+| test_library | M07/M14 | HR/Supervisor managed test bank |
+| test_questions | M07 | Questions per test (MCQ/essay/short/T-F) |
+| test_rounds | M07 | Round instance per test action |
+| test_assignments | M07 | Applicant ↔ test round assignments |
+| test_sessions | M07 | Anti-cheat tracking per test session |
+| test_submissions | M07 | Submitted answers (JSONB) |
+| test_grades | M07 | Per-question scores (auto + manual) |
+| interview_rounds | M08 | Round instance per interview action |
+| scoring_criteria | M08 | Evaluation criteria per interview |
+| interview_assignments | M08 | Applicant ↔ interview round assignments |
+| interview_evaluations | M08 | Per-interviewer per-criterion scores |
+| invite_links | M08 | 256-bit token for temp interviewer access |
+| transfer_history | M09 | Transfer chain per application |
+| offers | M12 | Hire offer records |
+| requisitions | M12 | Supervisor headcount requests |
+| email_templates | M14 | System + custom email templates |
+| jd_templates | M14 | HR-managed JD templates |
+| notifications | M13 | In-app notification records |
+| notification_preferences | M13 | Per-user per-event channel toggles |
+
+**Altered Tables (from additive migration):**
+- `users` — added: locale, theme, updated_at, invited_by, invite_expires_at, is_temp; role expanded to include 'temp_interviewer'
+- `jobs` — added: publish_at, close_at, updated_at; status expanded to include 'scheduled'
+- `candidates` — added: is_starred, blacklist_reason, updated_at
+- `application_documents` — added: ocr_status, similarity_score
+- `applications` — added unique index on (candidate_id, job_id)
+
+**Seed Data:**
+- 7 email templates seeded (SYS_OTP + TPL01-TPL06) with Thai text and variable placeholders
+
+---
+
+## Output 3 — API Contract Table
+
+### Go API Endpoints (services/go-api)
+
+| Method | Endpoint | Module | Handler | Description |
+|--------|----------|--------|---------|-------------|
+| POST | /api/auth/login | M01/M02 | auth.Login | Admin/HR/Supervisor login |
+| POST | /api/auth/logout | M01/M02 | auth.Logout | Invalidate JWT |
+| POST | /api/auth/change-password | M01/M02 | auth.ChangePassword | Forced first-login + voluntary |
+| POST | /api/auth/otp/request | M02 | auth.RequestOTP | HR/Supervisor OTP request |
+| POST | /api/auth/otp/verify | M02 | auth.VerifyOTP | Verify OTP + reset password |
+| GET | /api/users | M01 | users.List | List users with pagination |
+| POST | /api/users | M01 | users.Create | Admin creates user |
+| PUT | /api/users/:id | M01 | users.Update | Edit user |
+| DELETE | /api/users/:id | M01 | users.Delete | Deactivate user |
+| POST | /api/users/:id/reset-password | M01 | users.ResetPassword | Admin resets user password |
+| GET | /api/jobs | M04 | jobs.List | List jobs with filter/search |
+| POST | /api/jobs | M04 | jobs.Create | Create job posting |
+| PUT | /api/jobs/:id | M04 | jobs.Update | Edit job posting |
+| DELETE | /api/jobs/:id | M04 | jobs.Delete | Delete/close job |
+| GET | /api/jobs/:id/dashboard | M04 | jobs.Dashboard | Pipeline dashboard stats |
+| GET | /api/jobs/:id/pipeline | M04 | pipeline.List | Pipeline milestone view |
+| POST | /api/jobs/:id/pipeline/actions | M06-M08 | pipeline.CreateAction | HR creates action (test/interview/hire/drop/transfer) |
+| GET | /api/forms | M05 | forms.List | List forms |
+| POST | /api/forms | M05 | forms.Create | Create form (JSON schema) |
+| PUT | /api/forms/:id | M05 | forms.Update | Edit form |
+| DELETE | /api/forms/:id | M05 | forms.Delete | Delete form (with ref check) |
+| POST | /api/forms/:id/publish | M05 | forms.Publish | Publish form as JSON |
+| GET | /api/applications | M03 | applications.List | List applications |
+| GET | /api/applications/:id | M03 | applications.Get | Get application detail |
+| POST | /api/applications/:id/resume-review | M06 | resume_review.Submit | Submit resume review scores |
+| POST | /api/applications/:id/position-marks | M06 | resume_review.MarkPositions | Mark suitable positions (max 3) |
+| GET | /api/tests/library | M07 | tests.ListLibrary | List test bank |
+| POST | /api/tests/library | M07 | tests.CreateTest | Create test |
+| PUT | /api/tests/library/:id | M07 | tests.UpdateTest | Edit test |
+| DELETE | /api/tests/library/:id | M07 | tests.DeleteTest | Delete test |
+| POST | /api/tests/rounds | M07 | tests.CreateRound | Create test round + assign applicants |
+| GET | /api/tests/rounds/:id/grades | M07 | tests.GetGrades | Get test grades + leaderboard |
+| POST | /api/tests/rounds/:id/grade | M07 | tests.SubmitGrade | Manual grading (essay) |
+| POST | /api/tests/sessions/:id/submit | M07 | tests.SubmitTest | Applicant submits answers |
+| POST | /api/tests/sessions/:id/heartbeat | M07 | tests.Heartbeat | Anti-cheat heartbeat |
+| POST | /api/interviews/rounds | M08 | interviews.CreateRound | Create interview round |
+| POST | /api/interviews/rounds/:id/criteria | M08 | interviews.SetCriteria | Define scoring criteria |
+| POST | /api/interviews/rounds/:id/assign | M08 | interviews.AssignInterviewers | Assign interviewers |
+| GET | /api/interviews/rounds/:id/invites | M08 | interviews.ListInvites | List invite links |
+| POST | /api/interviews/rounds/:id/invites | M08 | interviews.CreateInvite | Create temp interviewer invite |
+| POST | /api/interviews/evaluations | M08 | interviews.SubmitEvaluation | Interviewer submits score |
+| GET | /api/interviews/rounds/:id/leaderboard | M08 | interviews.Leaderboard | Phase 2 selection view |
+| POST | /api/transfer | M09 | transfer.Create | Transfer applicant to new position |
+| GET | /api/transfer/:applicationId/history | M09 | transfer.History | Get transfer chain |
+| GET | /api/candidates | M11 | candidates.List | Search/filter candidates |
+| GET | /api/candidates/:id | M11 | candidates.Detail | Full application history |
+| POST | /api/candidates/:id/blacklist | M11 | candidates.Blacklist | Blacklist with reason |
+| POST | /api/candidates/:id/unblacklist | M11 | candidates.Unblacklist | Unblacklist with reason |
+| GET | /api/requisitions | M12 | requisitions.List | List requisitions |
+| POST | /api/requisitions | M12 | requisitions.Create | Supervisor creates requisition |
+| PUT | /api/requisitions/:id | M12 | requisitions.Update | HR edits requisition |
+| POST | /api/requisitions/:id/convert | M12 | requisitions.Convert | 1-click convert to job posting |
+| GET | /api/notifications | M13 | notifications.List | User notifications |
+| PUT | /api/notifications/:id/read | M13 | notifications.MarkRead | Mark as read |
+| GET | /api/notifications/preferences | M13 | notifications.GetPreferences | Get channel preferences |
+| PUT | /api/notifications/preferences | M13 | notifications.UpdatePreferences | Toggle in-app/email |
+| GET | /api/setup/email-templates | M14 | setup.ListEmailTemplates | List email templates |
+| PUT | /api/setup/email-templates/:id | M14 | setup.UpdateEmailTemplate | Edit template |
+| GET | /api/setup/jd-templates | M14 | setup.ListJDTemplates | List JD templates |
+| POST | /api/setup/jd-templates | M14 | setup.CreateJDTemplate | Create JD template |
+| PUT | /api/setup/jd-templates/:id | M14 | setup.UpdateJDTemplate | Edit JD template |
+| DELETE | /api/setup/jd-templates/:id | M14 | setup.DeleteJDTemplate | Delete JD template |
+| GET | /api/setup/master-data/:entity | M14 | setup.ListMasterData | List departments/skills/etc. |
+| POST | /api/setup/master-data/:entity | M14 | setup.CreateMasterData | Create master data entry |
+| PUT | /api/setup/master-data/:entity/:id | M14 | setup.UpdateMasterData | Edit master data |
+| DELETE | /api/setup/master-data/:entity/:id | M14 | setup.DeleteMasterData | Delete master data |
+
+### AI Service Endpoints (ai-service)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /ocr/extract | Extract text from resume PDF/image |
+| POST | /embed/text | Generate 384-dim embedding vector |
+| POST | /match/score | Compute cosine similarity score |
+| GET | /health | Health check |
+
+### Portal Endpoints (via Go API)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/portal/jobs | Public job listings |
+| GET | /api/portal/jobs/:id | Job detail + form |
+| POST | /api/portal/apply | Submit application |
+| GET | /api/portal/test/:token | Access online test (token-based) |
+| POST | /api/portal/test/:token/submit | Submit test answers |
+
+---
+
+## Output 4 — Folder Structure & Scaffolds
+
+### Monorepo Layout (VERIFIED — all files exist on disk)
+
+```
+TRTS-Opencode/
+├── apps/
+│   ├── main/                         # HR / Supervisor / Admin (Next.js 14)
+│   │   └── src/features/
+│   │       ├── auth/                  # M01/M02: Login, password change, OTP
+│   │       ├── users/                 # M01: User management
+│   │       ├── jobs/                  # M04: Job posting CRUD + scheduling
+│   │       ├── forms/                 # M05: Form builder
+│   │       ├── pipeline/              # M04: Pipeline dashboard + milestone view
+│   │       ├── resume-review/         # M06: 3-panel resume review
+│   │       ├── tests/                 # M07: Test management + grading
+│   │       ├── interviews/            # M08: Interview rounds + scoring
+│   │       ├── transfer/              # M09: Transfer management
+│   │       ├── candidates/            # M11: Candidate search + blacklist
+│   │       ├── requisitions/          # M12: Requisition workflow
+│   │       ├── notifications/         # M13: Notification bell + preferences
+│   │       └── setup/                 # M14: Email templates, JD templates, master data
+│   │
+│   └── portal/                        # Applicant Portal (Next.js 14)
+│       └── src/features/
+│           ├── jobs/                   # Public job listings
+│           ├── apply/                  # Application submission
+│           └── online-test/            # Online test taking
+│
+├── services/
+│   └── go-api/                        # Go 1.22 / Gin REST API
+│       ├── cmd/api/main.go            # Entry point
+│       ├── config/config.go           # Env config
+│       ├── internal/
+│       │   ├── middleware/auth.go      # JWT middleware
+│       │   ├── scheduler/scheduler.go # Auto-publish/close cron
+│       │   ├── ocr_worker/worker.go   # Async OCR job processor
+│       │   ├── email/email.go         # SMTP email sender
+│       │   ├── auth/                  # handler.go + service.go + routes.go
+│       │   ├── users/                 # handler.go + service.go + routes.go
+│       │   ├── jobs/                  # handler.go + service.go + routes.go
+│       │   ├── forms/                 # handler.go + service.go + routes.go
+│       │   ├── applications/          # handler.go + service.go + routes.go
+│       │   ├── pipeline/              # handler.go + service.go + routes.go
+│       │   ├── resume_review/         # handler.go + service.go + routes.go
+│       │   ├── tests/                 # handler.go + service.go + routes.go
+│       │   ├── interviews/            # handler.go + service.go + routes.go
+│       │   ├── transfer/              # handler.go + service.go + routes.go
+│       │   ├── candidates/            # handler.go + service.go + routes.go
+│       │   ├── notifications/         # handler.go + service.go + routes.go
+│       │   ├── requisitions/          # handler.go + service.go + routes.go
+│       │   ├── setup/                 # handler.go + service.go + routes.go
+│       │   └── talent_pool/           # handler.go + service.go + routes.go
+│       └── pkg/
+│           ├── jwt/jwt.go             # JWT utilities
+│           ├── response/response.go   # Standard response helpers
+│           ├── database/postgres.go   # pgx connection pool
+│           └── redis/redis.go         # Redis client
+│
+├── ai-service/                        # Python FastAPI
+│   ├── main.py                        # FastAPI entry
+│   ├── app/
+│   │   ├── core/config.py             # Settings
+│   │   ├── routers/
+│   │   │   ├── ocr.py                 # POST /ocr/extract
+│   │   │   ├── embed.py               # POST /embed/text
+│   │   │   └── match.py               # POST /match/score
+│   │   └── services/
+│   │       ├── __init__.py
+│   │       ├── ocr_service.py         # pytesseract + pdfplumber
+│   │       ├── embed_service.py       # sentence-transformers (multilingual)
+│   │       └── match_service.py       # cosine similarity + MatchResult
+│   └── requirements.txt
+│
+├── packages/
+│   └── shared/
+│       └── src/
+│           ├── tokens/
+│           │   ├── brand.ts           # TigerSoft brand constants
+│           │   └── design-tokens.ts   # Full design token system
+│           └── types/
+│               ├── index.ts           # Re-exports all types
+│               ├── auth.ts            # M01/M02
+│               ├── job.ts             # M04
+│               ├── form.ts            # M05
+│               ├── resume-review.ts   # M06
+│               ├── test.ts            # M07
+│               ├── interview.ts       # M08
+│               ├── transfer.ts        # M09
+│               ├── talent-pool.ts     # M10
+│               ├── requisition.ts     # M12
+│               ├── notification.ts    # M13
+│               └── setup.ts           # M14
+│
+├── migrations/
+│   ├── 20260316000000_ats_m01_m05_initial.sql
+│   └── 20260316000001_ats_additive.sql
+│
+├── docker-compose.yml
+└── .env.example
+```
+
+---
+
+## Output 5 — Key Dependencies & Assumptions
+
+### Dependencies
+| Service | Key Packages |
+|---------|-------------|
+| Go API | gin, pgx v5, redis/go-redis v9, golang-jwt v5, gomail v2 |
+| AI Service | fastapi, pytesseract, pdfplumber, sentence-transformers, numpy, Pillow |
+| Frontend (main/portal) | next 14, react 18, next-intl, tailwindcss |
+| Shared | typescript (types + design tokens only, no runtime deps) |
+
+### Assumptions
+1. PostgreSQL 15 with `uuid-ossp` extension available
+2. Redis 7 for JWT blacklist + notification pub/sub
+3. SMTP server configured for transactional email
+4. OCR is async — does not block application submission
+5. Embedding model: `paraphrase-multilingual-MiniLM-L12-v2` for EN+TH support
+6. Vectors stored as JSONB (pgvector can be added later for similarity search at scale)
+7. All frontend apps import design tokens from `packages/shared` — no raw hex values
+8. `go mod tidy` not yet run (scaffold-only mode) — Go LSP errors expected
+
+---
+
+## Output 6 — Architecture Decision Records (ADRs)
+
+| ADR | Decision | Rationale |
+|-----|----------|-----------|
+| ADR-001 | M01+M02 share single auth module | Both use JWT + same user table; differentiate by role flag |
+| ADR-002 | OCR is async via FastAPI queue | Must not block form submission; Go worker polls + callbacks |
+| ADR-003 | Job scheduler is Go goroutine with DB polling | `publish_at` / `close_at` checked on interval; indexed columns for performance |
+| ADR-004 | OCR status tracked in application_documents | `ocr_status` enum (pending/processing/done/failed) with index for worker polling |
+| ADR-005 | pipeline_actions as central orchestration table | Action-based pipeline — HR selects freely, no fixed order; round_number + phase for multi-round support |
+| ADR-006 | JSONB for embeddings instead of pgvector | Simpler deployment; pgvector migration path available when scale requires it |
+| ADR-007 | Temp interviewers via invite_links + is_temp flag | 256-bit token, time-limited; user record created with is_temp=true on first access |
+| ADR-008 | Form schema stored as JSON | Supports 14 field types dynamically; no table-per-field-type explosion |
+| ADR-009 | Batch2 schemas for conflicting tables | job_embeddings (JSONB > pgvector for now), blacklist_logs (candidate_id + action enum), email_templates (code + type) |
+
+---
+
+## Output 7 — Non-Functional Assessment
+
+| Concern | Approach |
+|---------|----------|
+| **Authentication** | JWT with 30-min expiry, Redis blacklist for logout, forced password change on first login |
+| **Authorization** | Role-based (admin/hr/supervisor/temp_interviewer), middleware enforced |
+| **Session Timeout** | 30-min inactivity via JWT expiry (SRS FRA04) |
+| **Anti-Cheat (Tests)** | tab_switch_count, copy_paste_count, heartbeat tracking in test_sessions |
+| **Internationalization** | next-intl with locale toggle (th/en), user preference stored in DB |
+| **Theming** | CSS variables with light/dark toggle, user preference stored in DB |
+| **Accessibility** | WCAG 2.1 AA contrast compliance target for both themes |
+| **Email** | SMTP via gomail, template-based with variable substitution |
+| **Performance** | Indexed columns for scheduler polling, OCR worker queue, notification unread counts |
+| **Scalability** | Stateless Go API (horizontal scaling), Redis for shared state, async AI processing |
+
+---
+
+## Output 8 — Design Tokens Confirmation
+
+TigerSoft Branding CI tokens are defined in `packages/shared/src/tokens/design-tokens.ts`:
+
+| Token Category | Status | Notes |
+|----------------|--------|-------|
+| Colors (vivid_red, oxford_blue, white, medium_grey, light_silver, success_green) | Confirmed from branding doc | No pure black (#000000) — oxford_blue used instead |
+| Semantic aliases (background, text_primary, cta_bg, etc.) | Derived — no new hex values | Safe to use |
+| Typography (Plus Jakarta Sans EN, FC Vision TH) | Confirmed from branding doc | |
+| Font weights (400-700) | Flagged — not in branding doc | Standard web-safe values |
+| Type scale (12px-40px on 4px grid) | Flagged — derived from 4px base unit | |
+| Spacing (4px base grid, 0-96px) | Flagged — derived from base unit rule | |
+| Border radius (soft rounded / pill) | Flagged — direction confirmed, exact px values derived | |
+| Shadows, z-index, breakpoints | Flagged — not in branding doc | Standard web convention |
+| Status colors (pipeline state badges) | Derived from brand palette only | No new hex values |
+
+**Flagged items**: Items marked "Flagged" use standard web conventions consistent with the branding direction but exact values were not specified in `docs/Tigersoft_CI_Branding.md`. Orchestrator sign-off granted for development use — can be refined during Phase 6 UAT visual review.
+
+[HANDOFF NOTES]
+
+## For Phase 3 (Sprint Planner):
+
+1. **67 user stories** across M01-M15, totaling 229 story points — all Must priority
+2. **Suggested sprint grouping** (from memory):
+   - Sprint 1: M01, M02, M03 (~28 pts) — Auth foundation + Portal intake
+   - Sprint 2: M04, M05 (~42 pts) — Job Posting + Form Builder
+   - Sprint 3+: M06-M15 — Pipeline features, AI, Tests, Interviews, etc.
+3. **Tag mapping**: Each story maps to frontend/backend/ai-service/infra tags
+4. **All Go backend domains have scaffolds** — 15 domains × 3 files (handler/service/routes)
+5. **All frontend feature directories have scaffolds** — actions.ts + types.ts per feature
+6. **Shared types cover all modules** — importable from packages/shared
+7. **DB schema is complete and consolidated** — 35 tables, 2 migration files, no conflicts
+8. **API contract has 65+ endpoints** — ready for task-level breakdown
+9. **Design tokens confirmed** — flagged items approved for dev use
+10. **pipeline_actions is the central orchestration table** — key dependency for M06-M09 tasks
+
+===END REPORT===

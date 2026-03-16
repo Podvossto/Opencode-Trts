@@ -1,0 +1,106 @@
+{
+  "common": {
+    "appName": "ระบบสรรหาบุคลากร",
+    "loading": "กำลังโหลด...",
+    "save": "บันทึก",
+    "cancel": "ยกเลิก",
+    "delete": "ลบ",
+    "edit": "แก้ไข",
+    "create": "สร้าง",
+    "search": "ค้นหา...",
+    "noResults": "ไม่พบผลลัพธ์",
+    "confirm": "ยืนยัน",
+    "back": "กลับ",
+    "next": "ถัดไป",
+    "submit": "ส่ง",
+    "actions": "การดำเนินการ",
+    "status": "สถานะ",
+    "all": "ทั้งหมด"
+  },
+  "auth": {
+    "login": "เข้าสู่ระบบ",
+    "logout": "ออกจากระบบ",
+    "email": "อีเมล",
+    "password": "รหัสผ่าน",
+    "forgotPassword": "ลืมรหัสผ่าน?",
+    "loginButton": "เข้าสู่ระบบ",
+    "loginSubtitle": "กรุณาป้อนข้อมูลเพื่อเข้าสู่ระบบ",
+    "invalidCredentials": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+    "sessionExpired": "เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง",
+    "changePassword": "เปลี่ยนรหัสผ่าน",
+    "oldPassword": "รหัสผ่านปัจจุบัน",
+    "newPassword": "รหัสผ่านใหม่",
+    "confirmPassword": "ยืนยันรหัสผ่านใหม่",
+    "passwordChanged": "เปลี่ยนรหัสผ่านสำเร็จ",
+    "mustChangePassword": "คุณต้องเปลี่ยนรหัสผ่านก่อนดำเนินการต่อ",
+    "otpTitle": "กรอกรหัส OTP",
+    "otpSubtitle": "รหัส 6 หลักถูกส่งไปยังอีเมลของคุณแล้ว",
+    "otpCode": "รหัส OTP",
+    "otpVerify": "ยืนยัน OTP",
+    "otpResend": "ส่ง OTP อีกครั้ง",
+    "otpExpired": "รหัส OTP หมดอายุ กรุณาขอรหัสใหม่",
+    "resetPassword": "รีเซ็ตรหัสผ่าน",
+    "resetPasswordSubtitle": "กรอกอีเมลเพื่อรับรหัส OTP สำหรับรีเซ็ตรหัสผ่าน",
+    "requestOtp": "ขอรหัส OTP",
+    "setNewPassword": "ตั้งรหัสผ่านใหม่"
+  },
+  "users": {
+    "title": "จัดการผู้ใช้",
+    "createUser": "สร้างผู้ใช้",
+    "editUser": "แก้ไขผู้ใช้",
+    "deleteUser": "ปิดใช้งานผู้ใช้",
+    "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการปิดใช้งานผู้ใช้รายนี้?",
+    "fullName": "ชื่อ-นามสกุล",
+    "email": "อีเมล",
+    "role": "บทบาท",
+    "department": "แผนก",
+    "active": "ใช้งาน",
+    "inactive": "ปิดใช้งาน",
+    "resetPassword": "รีเซ็ตรหัสผ่าน",
+    "resetPasswordConfirm": "รีเซ็ตรหัสผ่านของผู้ใช้รายนี้? ผู้ใช้จะต้องเปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งถัดไป",
+    "passwordReset": "รีเซ็ตรหัสผ่านสำเร็จ",
+    "roles": {
+      "admin": "แอดมิน",
+      "hr": "ทรัพยากรบุคคล",
+      "supervisor": "หัวหน้างาน"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาชื่อหรืออีเมล...",
+      "role": "กรองตามบทบาท",
+      "department": "กรองตามแผนก",
+      "status": "กรองตามสถานะ"
+    }
+  },
+  "jobs": {
+    "title": "ตำแหน่งงาน",
+    "createJob": "สร้างตำแหน่ง",
+    "department": "แผนก",
+    "status": "สถานะ",
+    "applicants": "ผู้สมัคร",
+    "statuses": {
+      "draft": "ฉบับร่าง",
+      "open": "เปิดรับสมัคร",
+      "closed": "ปิดรับสมัคร"
+    }
+  },
+  "nav": {
+    "dashboard": "แดชบอร์ด",
+    "jobs": "ตำแหน่งงาน",
+    "pipeline": "ไปป์ไลน์",
+    "forms": "ตัวสร้างฟอร์ม",
+    "resumeReview": "คัดกรองเรซูเม่",
+    "tests": "ข้อสอบ",
+    "interviews": "สัมภาษณ์",
+    "candidates": "ผู้สมัคร",
+    "requisitions": "คำขออัตรา",
+    "users": "ผู้ใช้งาน",
+    "setup": "ตั้งค่า",
+    "notifications": "แจ้งเตือน"
+  },
+  "validation": {
+    "required": "กรุณากรอกข้อมูลนี้",
+    "invalidEmail": "รูปแบบอีเมลไม่ถูกต้อง",
+    "minLength": "ต้องมีอย่างน้อย {min} ตัวอักษร",
+    "passwordMismatch": "รหัสผ่านไม่ตรงกัน"
+  }
+}

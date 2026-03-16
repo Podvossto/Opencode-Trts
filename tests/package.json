@@ -1,0 +1,18 @@
+{
+  "name": "@ats/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "npx playwright test",
+    "test:main": "npx playwright test --project=main",
+    "test:portal": "npx playwright test --project=portal",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  }
+}

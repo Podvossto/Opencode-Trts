@@ -1,0 +1,129 @@
+===TASK HANDOFF===
+Phase   : P1
+Agent   : product-owner-agile
+Task ID : ATS-BACKLOG-001
+
+[CONTEXT]
+Feature: ATS Recruitment System — Full Product Backlog (Phase 1 Requirements Analysis)
+
+ATS Pipeline (Action-based, mandatory order):
+  เปิดรับตำแหน่ง (mandatory) → Resume Review (mandatory) → Test and/or Interview (multiple rounds, any order) → Pass / Drop / Transfer / Hire
+
+Roles: Admin | HR | Supervisor | Applicant (no account) | Interviewer (temp via invite link)
+
+Apps:
+  apps/main  — HR, Supervisor, Admin (Next.js + Go backend + PostgreSQL)
+  apps/portal — Applicant Portal (Next.js, shared DB, no login required)
+
+--- SRS EXTRACT BY MODULE ---
+
+## M01 — Admin Auth & User Management
+Requirements: FRA01, FRA01a, FRA02, FRA03, FRA04, FRA05, FRA06, FRA07
+- Admin login with username/password or Email+password (same credential)
+- Forced password change on first login (must_change_password = true)
+- Session expires after 30 min inactivity
+- CRUD User: list, create (sets must_change_password=true), edit, delete, reset password
+- Admin creates all HR/Supervisor accounts; seed script creates initial Admin from ENV
+
+## M02 — HR Auth & Password Reset
+Requirements: FRH01, FRH02, FRS01, FRS02
+- HR/Supervisor login with username/password or Email+password
+- Self-service OTP reset password via Email (OTP valid 10 min, single-use)
+- Session expires 30 min; forced change on first login
+
+## M03 — Applicant Portal — Job Application Submission
+Requirements: FRAP01–FRAP06, FRCD01–FRCD03
+- Applicant accesses via ats.com/apply/{job-id}, no login required
+- Submit application form (rendered from Form JSON stored in DB by apps/portal)
+- Auto-create Candidate on Submit (Email = unique key); if Candidate exists, add new Application
+- Block duplicate application to same active job
+- Block Blacklisted Candidate on submit
+- Auto-send confirmation Email (SYS01) on successful Submit
+- After submit, auto-trigger OCR pipeline on Resume file
+- Online test: link re-openable until Submit or expiry; auto-save draft; no edit after Submit
+- Onsite test: HR schedules, opens system for Applicant on-site
+
+## M04 — Job Posting & Pipeline Dashboard
+Requirements: FRH05, FRH05b, FRH06–FRH14, FRH37–FRH43
+- HR creates job posting: title, JD, hard skills, form link, test defaults, start_date (mandatory), end_date (optional)
+- Hard Skill Weight popup (mandatory before creating Job)
+- Job statuses: Draft / Scheduled / Active / Closed
+- Auto-publish when start_date reached; auto-close when end_date reached
+- Pipeline Dashboard: milestone view 5-stage (รับสมัคร/Review/ทดสอบ/สัมภาษณ์/รับเข้าทำงาน), badge round count, expand detail
+- Dashboard stats: total applicants, remaining, dropped, hired, current stage count
+- Filter: all / in-progress / closed / draft; kebab menu per row
+- Email trigger from dashboard: select Applicant → select template → send
+
+## M05 — Application Form Builder
+Requirements: FRH03, FRH04, FRSC06, FRSC07, FRSC08, FRSC09
+- HR builds forms per line-type (Tech/HR/Finance/Other)
+- Fields: Text, Textarea, Dropdown, Checkbox, Radio, File Upload, Date Picker
+- Custom questions: MCQ, Short Answer, Essay, True/False, Rating Scale, File Upload, Image/Video/Link media
+- On Publish, system saves Form JSON to DB; apps/portal renders it dynamically
+- Edit and delete (with reference check)
+
+## M06 — Resume Review (AI Similarity + LLM Summary)
+Requirements: FRCD-R01, FRCD14–FRCD22, FRP-A02, FRP-A03
+- Left panel: Waiting For Review list (Current/Unreviewed/Reviewed badges); filter by Department; include Starred checkbox
+- Center panel: Resume, Transcript, other docs (only Resume OCR'd; others view-only)
+- Right-top: Applicant Information + LLM Summary (from Resume OCR + Form data)
+- Right-bottom: Position panel — Overall Score per open Position in Applicant's Department, progress bar ranked
+- Overall Score = weighted avg of JD similarity + Hard Skill similarity per skill (weights from Weight popup)
+- Pre-compute similarity for Next Applicant on load
+- HR marks up to 3 suitable positions (reference for Transfer, not creating new Application)
+- Decision buttons: Interest (Pass → In Progress) / Reject (Drop, auto-send SYS02) / Star (→ Talent Pool, Reject from current job, no Email) / End Review (pause) / Next (pre-computed)
+- When new Job published, auto-compute similarity for all Starred Candidates
+
+## M07 — Action Pipeline — Test (multi-round)
+Requirements: FRP-A04, FRP-A04b–FRP-A04f, FRP-A05, FRP-A08, FRP-A09, FRAT01–FRAT09, FRST01–FRST09
+- HR initiates Action Test at any point after Review; badge "ครั้งที่ N" per Applicant
+- HR selects Applicants to include in this round before confirming
+- First round uses default test set linked during Job creation; subsequent rounds HR chooses from library
+- Test modes: Online (email link, re-openable, auto-save draft, submit=locked) or Onsite
+- General Test (created by HR): MCQ auto-graded; Essay/Short Answer graded by HR
+- Technical Test (created by Supervisor): MCQ auto-graded; Essay/Short Answer graded by Supervisor who created it
+- Grading Inbox: Supervisor sees badge count, grades per question, submits → FRNOT05 sent to HR
+- Anti-cheat: no copy/paste, tab-switch detection; Timer per test or per question; random order option
+- Phase 1 (Grading): HR sees scores real-time as graders submit
+- Phase 2 (Selection): HR opens manually; leaderboard sorted by score, live updates
+- HR decides Next Action per Applicant: Test again / Interview / Hire / Drop (NO Transfer from Test)
+
+## M08 — Action Pipeline — Interview (multi-round, Scoring Criteria, Invite Links)
+Requirements: FRP-A05, FRP-A05b–FRP-A05g, FRSC-I01–FRSC-I08, FRH19–FRH36, FRP-A06, FRP-A07
+- HR initiates Action Interview; badge "ครั้งที่ N" per Applicant
+- HR selects Applicants for this round; HR defines Scoring Criteria (criteria name + max score per item)
+- Supervisor can create Scoring Criteria only for rounds they are assigned to
+- HR assigns interviewers: Supervisor (regular account) and/or Temporary Interviewers (via invite link)
+- Invite link: 256-bit random token, re-openable until expiry; auto-create temp account on first click
+- Temp account scoped to assigned Applicants and criteria only; auto-deactivated after round ends or link expires
+- HR can revoke links before expiry
+- Phase 1 (Grading): interviewers grade per criteria item + note real-time; HR sees per-interviewer scores separately
+- System shows which interviewers have not yet submitted
+- Phase 2 (Selection): HR opens manually; leaderboard avg-of-averages; HR sees comparison per interviewer
+- Next Action per Applicant (Phase 2): Test / Interview / Transfer / Hire / Drop
+- Decisions are final once made — no change even if late scores arrive
+- HR sends interview invitation Email to Applicants (TPL05)
+
+## M09 — Cross-Position Transfer
+Requirements: FRCD-T01–FRCD-T08, FRP-A06
+- Transfer available only during or after Interview (Phase 1 Grading or Phase 2 Selection) — NOT after Test
+- HR marks up to 3 suitable positions in Resume Review (reference only; no new Application created)
+- On Transfer: old Application closes + slot returned to old Position; new Application created in target Position
+- History (Test + Interview scores) carries over to new Application timeline
+- Transfer unlimited times (A→B→C)
+- Applicant unaware of Transfer until HR issues Offer
+- If target Position is Closed: system shows warning before confirm
+- Block sending Test from wrong Position
+
+## M10 — Talent Pool / Star Feature
+Requirements: FRCD20, FRCD22, FRP-A03
+- HR can Star an Applicant during Resume Review
+- Starred = Rejected from current Job automatically (no rejection Email sent)
+- Starred Candidates auto-computed against new Jobs when published
+- Appear in Waiting For Review list with ⭐ badge for matching Jobs
+- Include Starred checkbox in Resume Review filter
+
+## M11 — Candidate Management (Detail, OCR, Blacklist)
+Requirements: FRCD04–FRCD13, FRCD23–FRCD27
+- Candidate list: name, email, application count, latest status; search by name/email; filter by status/position
+- Candidate Detail: personal info (HR can edit name), all Application his

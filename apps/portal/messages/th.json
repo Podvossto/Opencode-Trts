@@ -1,0 +1,26 @@
+{
+  "portal": {
+    "title": "ร่วมงานกับ TigerSoft",
+    "tagline": "ค้นหาตำแหน่งงานที่เหมาะกับคุณ",
+    "search_placeholder": "ค้นหาตำแหน่ง...",
+    "filter_department": "ทุกแผนก",
+    "filter_type": "ทุกประเภท",
+    "no_jobs": "ยังไม่มีตำแหน่งเปิดรับในขณะนี้ กรุณาตรวจสอบอีกครั้งภายหลัง",
+    "loading": "กำลังโหลดตำแหน่ง...",
+    "apply_now": "สมัครเลย",
+    "view_details": "ดูรายละเอียด",
+    "slots_available": "เปิดรับ {count} ตำแหน่ง",
+    "closing_soon": "ปิดรับ {date}",
+    "posted": "ประกาศเมื่อ {date}",
+    "requirements": "คุณสมบัติ",
+    "description": "รายละเอียด",
+    "back_to_jobs": "กลับไปหน้ารวมตำแหน่ง",
+    "page": "หน้า {current} จาก {total}",
+    "previous": "ก่อนหน้า",
+    "next": "ถัดไป"
+  },
+  "common": {
+    "error": "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง",
+    "retry": "ลองใหม่"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".opencode/agents/sdlc-ats-orchestrator.md"
+  ],
+  "permission": {
+    "skill": {
+      "*": "allow"
+    },
+    "bash": {
+      "*": "allow",
+      "rm -rf *": "deny",
+      "curl *": "deny",
+      "wget *": "deny",
+      "git push origin main*": "deny",
+      "git push origin master*": "deny"
+    }
+  },
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      "node_modules/**",
+      ".next/**",
+      "dist/**"
+    ]
+  }
+}

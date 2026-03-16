@@ -1,0 +1,70 @@
+===TASK HANDOFF===
+Phase   : P3
+Agent   : sprint-planner
+Task ID : ATS-P3-SPRINT1
+
+[CONTEXT]
+Feature: ATS Recruitment — Sprint 1 (Auth Foundation + Portal Intake)
+Modules: M01 (Admin Auth & User MGMT), M02 (HR/Supervisor Auth), M03 (Applicant Portal)
+
+User Stories for Sprint 1 (10 stories, 34 pts):
+
+| ID | Title | Pts | Priority |
+|---|---|---|---|
+| US-M01-01 | Admin Login | 3 | Must |
+| US-M01-02 | Forced Password Change on First Login | 3 | Must |
+| US-M01-03 | Session Timeout 30min | 2 | Must |
+| US-M01-04 | List Users | 2 | Must |
+| US-M01-05 | Create New User | 3 | Must |
+| US-M01-06 | Edit and Delete User | 3 | Must |
+| US-M01-07 | Admin Resets User Password | 2 | Must |
+| US-M02-01 | HR/Supervisor Login | 2 | Must |
+| US-M02-02 | HR Self-Service OTP Password Reset | 5 | Must |
+| US-M03-01 | Applicant Accesses Job via URL | 3 | Must |
+
+Note: US-M03-02 through M03-05 deferred to Sprint 2 (depend on Form Builder M05).
+
+Architecture Summary (relevant to Sprint 1):
+- Go API: services/go-api/internal/auth/ (handler.go, service.go, routes.go)
+- Go API: services/go-api/internal/users/ (handler.go, service.go, routes.go)
+- Frontend: apps/main/src/features/auth/, apps/main/src/features/users/
+- Frontend: apps/portal/src/features/jobs/ (public job listing page)
+- DB tables: users, departments, otp_logs (from initial migration)
+- Infra: JWT middleware (services/go-api/internal/middleware/auth.go), Redis for JWT blacklist
+- Shared types: packages/shared/src/types/auth.ts
+
+API Endpoints (Sprint 1 scope):
+| Method | Endpoint | Module |
+|---|---|---|
+| POST | /api/auth/login | M01/M02 |
+| POST | /api/auth/logout | M01/M02 |
+| POST | /api/auth/change-password | M01/M02 |
+| POST | /api/auth/otp/request | M02 |
+| POST | /api/auth/otp/verify | M02 |
+| GET | /api/users | M01 |
+| POST | /api/users | M01 |
+| PUT | /api/users/:id | M01 |
+| DELETE | /api/users/:id | M01 |
+| POST | /api/users/:id/reset-password | M01 |
+| GET | /api/portal/jobs | M03 (public) |
+| GET | /api/portal/jobs/:id | M03 (public) |
+
+Key Dependencies:
+- Auth backend MUST complete before any frontend auth integration
+- JWT middleware MUST complete before user management endpoints
+- Redis setup (infra) MUST complete before JWT blacklist works
+- PostgreSQL + initial migration MUST run before any backend work
+
+[TASK]
+Generate a complete Sprint 1 plan with all 4 outputs:
+1. WBS tree with dependencies and critical path
+2. Notion-ready TASK blocks (one per WBS leaf)
+3. Sprint Summary with capacity check (80% max)
+4. Risk Register
+
+Assume team velocity: 40 pts/sprint (2-week sprint, 1 dev + 1 QA).
+Task IDs: start from ATS-001.
+
+[OUTPUT FORMAT]
+All 4 outputs in the closing format specified in your instructions. End with the self-verification checklist.
+===END HANDOFF===

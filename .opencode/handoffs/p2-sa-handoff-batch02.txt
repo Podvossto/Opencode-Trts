@@ -1,0 +1,43 @@
+===TASK HANDOFF===
+Phase   : P2
+Agent   : ats-system-architect
+Task ID : ATS-BACKLOG-002
+
+[CONTEXT]
+Feature: ATS Recruitment Backlog Batch 2 (M06-M15)
+In scope: Use only the user stories and Gherkin AC in `.opencode/handoffs/p1-po-phase-report-batch02.md`.
+Monorepo: `apps/main` for HR/Supervisor/Admin, `apps/portal` for Applicant Portal.
+Stack: Next.js | Go | FastAPI | PostgreSQL | Docker.
+ATS pipeline: Resume Review -> Test/Interview -> Hire/Drop/Transfer.
+Existing DB tables only: departments, employment_types, experience_levels, hard_skills, users, otp_logs, application_forms, jobs, job_hard_skills, candidates, applications, application_documents, test_autosave.
+Existing schema reference: `migrations/20260316000000_ats_m01_m05_initial.sql`.
+Prior architecture constraints already fixed:
+- Shared auth module for M01 + M02.
+- OCR is async via FastAPI queue and must not block submission.
+- Job auto-publish/close uses a background scheduler.
+- Form schema uses JSONB.
+Frontend and branding requirements:
+- Define design tokens and reference `docs/Tigersoft_CI_Branding.md`.
+- Key brand tokens: Vivid Red `#F4001A`, Oxford Blue `#0B1F3A`, Plus Jakarta Sans, soft rounded edges.
+
+[TASK]
+Produce Phase 2 system design for Batch 2 only. Return architecture overview, additive DB schema, API contract, folder structure paths, and key dependencies/assumptions. Include realtime/eventing choices where needed and frontend branding token architecture.
+
+[OUTPUT FORMAT]
+===PHASE REPORT===
+Phase   : P2
+Agent   : ats-system-architect
+Task ID : ATS-BACKLOG-002
+Status  : COMPLETE | BLOCKED | NEEDS_CLARIFICATION
+
+[OUTPUT]
+## 1. Architecture Overview
+## 2. Database Schema
+## 3. API Contract Table
+## 4. Folder Structure Paths
+## 5. Key Dependencies / Assumptions
+
+[HANDOFF NOTES]
+Only what PM needs next: architecture summary, endpoints table, critical dependencies.
+===END REPORT===
+===END HANDOFF===

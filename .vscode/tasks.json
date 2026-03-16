@@ -1,0 +1,50 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ATS: Start Multi-Agent tmux",
+      "type": "shell",
+      "command": "bash start-ats.sh ${workspaceFolder}",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ATS: Attach Orchestrator pane",
+      "type": "shell",
+      "command": "tmux attach-session -t ats-sdlc",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ATS: Monitor PO session",
+      "type": "shell",
+      "command": "tmux select-window -t ats-sdlc:0 && tmux select-pane -t ats-sdlc:0.1 && tmux attach-session -t ats-sdlc",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ATS: Monitor DEV/QA session",
+      "type": "shell",
+      "command": "tmux select-window -t ats-sdlc:0 && tmux select-pane -t ats-sdlc:0.3 && tmux attach-session -t ats-sdlc",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

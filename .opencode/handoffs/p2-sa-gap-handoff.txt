@@ -1,0 +1,215 @@
+===TASK HANDOFF===
+Phase   : P2 (Continuation — Gap Completion)
+Agent   : ats-system-architect
+Task ID : ATS-P2-GAPS
+
+[CONTEXT]
+You are continuing Phase 2 System Design for the ATS Recruitment System. Two prior SA sessions (Batch 1: M01-M05, Batch 2: M06-M15) produced substantial work but left gaps. Your job is to COMPLETE all remaining gaps and write the FINAL consolidated Phase Report.
+
+System: ATS Recruitment System
+Monorepo: apps/main (HR/Supervisor/Admin Next.js) | apps/portal (Applicant Portal Next.js)
+Stack: Next.js 14 | Go 1.22 (Gin) | FastAPI | PostgreSQL 15 | Redis 7 | Docker
+Pipeline: Resume Review -> Test/Interview (multiple rounds) -> Hire/Drop/Transfer
+
+ATS Pipeline Context: HR selects actions freely. Flow: Resume Review -> Test and/or Interview (multiple rounds) -> Hire / Drop / Transfer
+
+All UI must comply with TigerSoft Branding CI. Read docs/Tigersoft_CI_Branding.md for colors, typography, and design rules.
+Key: Vivid Red #F4001A for CTAs | Oxford Blue #0B1F3A for text (no pure black) | Plus Jakarta Sans font | Soft rounded edges.
+
+=== WHAT ALREADY EXISTS (DO NOT RECREATE) ===
+
+MIGRATIONS (3 files):
+- migrations/20260316000000_ats_m01_m05_initial.sql — 13 tables (departments, employment_types, experience_levels, hard_skills, users, otp_logs, application_forms, jobs, job_hard_skills, candidates, applications, application_documents, test_autosave)
+- migrations/20260316000001_ats_m01_m05_additive.sql — ALTER tables + 3 new tables (job_embeddings with pgvector vector(1536), blacklist_logs with email/phone columns, email_templates with slug/locale)
+- migrations/20260316000001_ats_m06_m15_batch2.sql — 20+ new tables for M06-M15 (position_marks, job_embeddings with JSONB, candidate_embeddings, blacklist_logs with candidate_id, pipeline_actions, test_library, test_questions, test_rounds, test_assignments, test_sessions, test_submissions, test_grades, interview_rounds, scoring_criteria, interview_assignments, interview_evaluations, invite_links, transfer_history, offers, requisitions, email_templates with code/type, jd_templates, notifications, notification_preferences)
+
+GO BACKEND DOMAINS WITH FULL TRIAD (handler.go + service.go + routes.go) — DO NOT RECREATE:
+- services/go-api/internal/auth/
+- services/go-api/internal/users/
+- services/go-api/internal/jobs/
+- services/go-api/internal/forms/
+- services/go-api/internal/applications/
+- services/go-api/internal/pipeline/
+- services/go-api/internal/resume_review/
+- services/go-api/internal/tests/
+- services/go-api/internal/interviews/
+- services/go-api/internal/transfer/
+
+GO BACKEND STUB-ONLY DOMAINS (header stubs only):
+- services/go-api/internal/candidates/ — has handler.go (5 lines), service.go, routes.go
+- services/go-api/internal/notifications/ — has handler.go (5 lines), service.go, routes.go
+
+GO UTILITIES THAT EXIST (DO NOT RECREATE):
+- services/go-api/internal/middleware/auth.go
+- services/go-api/internal/scheduler/scheduler.go
+- services/go-api/internal/ocr_worker/worker.go
+- services/go-api/internal/email/email.go
+- services/go-api/pkg/jwt/jwt.go
+- services/go-api/pkg/response/response.go
+- services/go-api/pkg/database/postgres.go
+- services/go-api/pkg/redis/redis.go
+- services/go-api/cmd/api/main.go
+- services/go-api/config/config.go
+- services/go-api/go.mod
+
+FRONTEND FEATURE SCAFFOLDS THAT EXIST (DO NOT RECREATE):
+- apps/main/src/features/auth/ — actions.ts, types.ts, schemas.ts
+- apps/main/src/features/users/ — actions.ts, types.ts
+- apps/main/src/features/jobs/ — actions.ts, types.ts
+- apps/main/src/features/forms/ — actions.ts, types.ts
+- apps/main/src/features/pipeline/ — actions.ts, types.ts
+- apps/portal/src/features/apply/ — actions.ts, types.ts
+- apps/portal/src/features/jobs/ — actions.ts
+
+SHARED PACKAGES THAT EXIST (DO NOT RECREATE):
+- packages/shared/src/tokens/brand.ts
+- packages/shared/src/tokens/design-tokens.ts
+- packages/shared/src/types/index.ts (Auth, Users, Jobs, Forms, Applications, Candidates)
+- packages/shared/src/types/auth.ts
+- packages/shared/src/types/job.ts
+- packages/shared/src/types/form.ts
+
+AI SERVICE THAT EXISTS (DO NOT RECREATE):
+- ai-service/main.py
+- ai-service/app/routers/ocr.py
+- ai-service/app/routers/embed.py
+- ai-service/app/routers/match.py
+- ai-service/app/core/config.py
+
+INFRA THAT EXISTS:
+- docker-compose.yml
+- .env.example
+
+=== GAPS TO COMPLETE (YOUR TASKS) ===
+
+TASK 1: RESOLVE MIGRATION CONFLICTS (CRITICAL)
+Both additive migrations define job_embeddings and blacklist_logs with DIFFERENT schemas:
+- Batch1 additive: job_embeddings uses pgvector vector(1536), blacklist_logs uses email/phone columns
+- Batch2: job_embeddings uses JSONB vectors + jd_weight/skill_weight, blacklist_logs uses candidate_id + action column
+
+Also Batch1 additive defines email_templates with (slug, locale) columns, while Batch2 defines email_templates with (code, type) columns.
+
+RESOLUTION APPROACH: The Batch2 schema is more complete and correct for the full system. Merge both into a SINGLE consolidated additive migration file: migrations/20260316000001_ats_additive.sql that:
+- Replaces BOTH existing additive files
+- Uses the Batch2 schema for job_embeddings (JSONB + weights) — pgvector can be added later if needed
+- Uses the Batch2 schema for blacklist_logs (candidate_id + action)
+- Uses the Batch2 schema for email_templates (code + type)
+- Includes ALL additive ALTER TABLE statements from Batch1 (users locale/theme/updated_at, jobs status/scheduler columns, candidates is_starred/updated_at, application_documents ocr columns)
+- Includes ALL new tables from Batch2
+- Includes ALL seed data from Batch2
+
+After creating the consolidated file, DELETE the two old files:
+- migrations/20260316000001_ats_m01_m05_additive.sql
+- migrations/20260316000001_ats_m06_m15_batch2.sql
+
+TASK 2: COMPLETE MISSING GO DOMAIN SCAFFOLDS
+Create handler.go + service.go + routes.go for these EMPTY directories:
+- services/go-api/internal/requisitions/ (M12)
+- services/go-api/internal/setup/ (M14 — email templates, JD templates, master data)
+- services/go-api/internal/talent_pool/ (M10)
+
+For candidates/ — it has handler.go (5-line stub), service.go, routes.go. Read these files. If they are stubs, flesh them out with proper placeholder content matching other domains.
+
+For notifications/ — same. Read and flesh out if needed.
+
+Each file should follow this pattern:
+// Purpose: {what this file does}
+// Ref: API Contract — {endpoints}
+// DB tables: {tables this domain touches}
+// Dev must implement: {function names}
+package {package}
+
+TASK 3: CREATE FRONTEND FEATURE SCAFFOLDS FOR M06-M15
+Create actions.ts + types.ts in each of these directories under apps/main/src/features/:
+- resume-review/ (M06)
+- tests/ (M07)
+- interviews/ (M08)
+- transfer/ (M09)
+- candidates/ (M11)
+- requisitions/ (M12)
+- notifications/ (M13)
+- setup/ (M14)
+
+Create for apps/portal/src/features/:
+- online-test/ (M07 — applicant-facing test delivery)
+
+Each file should have placeholder TypeScript with:
+// Purpose: {description}
+// Ref: API Contract — {endpoints this feature calls}
+// Dev must implement: {function names}
+
+TASK 4: CREATE SHARED TYPESCRIPT TYPES FOR M06-M15
+Add new type files to packages/shared/src/types/ for domains not yet covered:
+- resume-review.ts (M06 — position marks, similarity scores)
+- test.ts (M07 — test library, rounds, assignments, sessions, submissions, grades)
+- interview.ts (M08 — interview rounds, scoring criteria, assignments, evaluations, invite links)
+- transfer.ts (M09 — transfer history)
+- talent-pool.ts (M10 — starred candidates)
+- requisition.ts (M12 — requisition lifecycle)
+- notification.ts (M13 — notifications, preferences)
+- setup.ts (M14 — email templates, JD templates, master data)
+
+Update packages/shared/src/types/index.ts to re-export all new types.
+
+TASK 5: CREATE AI SERVICE IMPLEMENTATION STUBS
+Create stub service files in ai-service/app/services/:
+- __init__.py
+- ocr_service.py — OCR text extraction from PDF/DOCX/image
+- embed_service.py — text-to-vector embedding generation
+- match_service.py — similarity computation (JD + hard skill weighted)
+
+Each with a class stub and TODO markers for the actual implementation.
+
+TASK 6: WRITE THE FINAL CONSOLIDATED PHASE REPORT
+After completing Tasks 1-5, write the final report to .opencode/handoffs/p2-sa-phase-report.txt in this exact format:
+
+===PHASE REPORT===
+Phase   : P2
+Agent   : ats-system-architect
+Task ID : ATS-P2-COMPLETE
+Status  : COMPLETE
+
+[OUTPUT]
+
+Output 1 — Architecture Overview:
+(Component diagram showing service boundaries — Mermaid flowchart)
+(Layer responsibilities)
+(Module assignments: apps/main vs apps/portal)
+
+Output 2 — Database Schema Summary:
+(List ALL tables across the initial + consolidated additive migration with table name, purpose, key columns)
+(Note the consolidated migration resolving conflicts)
+
+Output 3 — API Contract Summary Table:
+(Endpoint summary table for ALL modules M01-M15)
+| Method | Path | Auth | Role | Module | Description |
+
+Output 4 — ADRs:
+(List all architecture decisions including the migration consolidation decision)
+
+Output 5 — Non-Functional Assessment:
+(Security, Performance, Scalability, Observability notes)
+
+Output 5.5 — Design Tokens:
+(Confirm packages/shared/src/tokens/brand.ts and design-tokens.ts are complete)
+
+Output 6 — Folder Structure Report:
+(Complete inventory of all folders/files created or existing)
+
+[HANDOFF NOTES]
+- Migration conflicts resolved: single consolidated additive migration
+- All Go domains scaffolded with handler/service/routes triad
+- All frontend features scaffolded with actions.ts/types.ts
+- All shared types created for M01-M15
+- AI service stubs created
+- Ready for Phase 3 Sprint Planning
+
+===END REPORT===
+
+[TASK]
+Complete ALL 6 tasks above. Work through them sequentially (Task 1 first since it resolves critical conflicts). After all tasks are done, write the Phase Report file.
+
+[OUTPUT FORMAT]
+===PHASE REPORT=== format written to .opencode/handoffs/p2-sa-phase-report.txt
+Plus summary of all files created/modified/deleted.
+===END HANDOFF===

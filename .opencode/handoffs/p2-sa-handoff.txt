@@ -1,0 +1,334 @@
+===TASK HANDOFF===
+Phase   : P2
+Agent   : ats-system-architect
+Task ID : ATS-ARCH-001
+
+[CONTEXT]
+
+## System Overview
+ATS Recruitment System — Monorepo with 2 apps:
+- apps/main  — HR / Supervisor / Admin (Next.js frontend + Go backend)
+- apps/portal — Applicant Portal (Next.js frontend + Go backend)
+Both apps share one PostgreSQL database. No cross-app API calls — communication via shared DB only.
+AI service: FastAPI (Python) — handles OCR, embedding, similarity computation.
+Infrastructure: Docker Compose (dev), containerised deployment.
+
+## Pipeline Model (Action-based)
+HR selects actions freely per job. Mandatory order: Open → Resume Review. After that:
+Test (N rounds) and/or Interview (N rounds) in any order → Pass / Drop / Transfer / Hire per applicant.
+Transfer is only available during or after Interview.
+
+## Roles
+- Admin: user CRUD, password reset
+- HR: full pipeline management, all decisions
+- Supervisor: requisition creation, interviewer/grader assignment, Technical Test creation & grading
+- Applicant: no account, portal access via URL only
+- Temp Interviewer: temporary account auto-created via invite link, scoped to one round
+
+## Existing DB Tables (names only — do NOT infer schema from names)
+users, jobs, applications, candidates, forms, form_responses, test_rounds, interview_rounds,
+interview_criteria, interview_scores, notifications, email_templates, master_data
+
+---
+
+## User Stories in Scope (US IDs + Title + Tags)
+
+### M01 — Admin Auth & User Management
+US-M01-01 | Admin Login | backend, frontend
+US-M01-02 | Forced Password Change on First Login | backend, frontend
+US-M01-03 | Session Timeout 30min | backend, frontend
+US-M01-04 | List Users | backend, frontend
+US-M01-05 | Create New User | backend, frontend
+US-M01-06 | Edit and Delete User | backend, frontend
+US-M01-07 | Admin Resets User Password | backend, frontend
+
+### M02 — HR Auth & Password Reset
+US-M02-01 | HR/Supervisor Login | backend, frontend
+US-M02-02 | HR Self-Service OTP Password Reset | backend, frontend
+
+### M03 — Applicant Portal — Job Application Submission
+US-M03-01 | Applicant Accesses Job via URL | frontend (portal)
+US-M03-02 | Submit Application Form | backend, frontend (portal)
+US-M03-03 | Block Blacklisted Candidate | backend
+US-M03-04 | Auto-trigger OCR on Resume | backend, ai-service
+US-M03-05 | Online Test Re-openable + Auto-save | backend, frontend (portal)
+
+### M04 — Job Posting & Pipeline Dashboard
+US-M04-01 | Create Job Posting with Hard Skill Weights | frontend, backend
+US-M04-02 | Job Scheduling Auto-Publish / Auto-Close | backend (scheduler)
+US-M04-03 | Edit, Filter, Manage Job Postings | frontend, backend
+US-M04-04 | Pipeline Dashboard 5-Stage Milestone View | frontend, backend
+US-M04-05 | Dashboard Stats (Total/Remaining/Dropped/Hired) | frontend, backend
+US-M04-06 | Email Trigger from Pipeline Dashboard | frontend, backend
+
+### M05 — Application Form Builder
+US-M05-01 | Build Form with Standard Fields | frontend, backend
+US-M05-02 | Add Custom Question Types | frontend, backend
+US-M05-03 | Publish Form as JSON to Database | backend
+US-M05-04 | Edit and Delete Forms with Reference Check | frontend, backend
+
+### M06 — Resume Review
+US-M06-01 | 3-Panel Resume Review Layout | frontend, backend
+US-M06-02 | Overall Score Calculation with Weight Popup | frontend, backend, ai-service
+US-M06-03 | HR Marks Up to 3 Suitable Positions | frontend, backend
+US-M06-04 | Resume Review Action Buttons (Interest/Reject/Star/End/Next) | frontend, backend
+US-M06-05 | Auto-Compute Similarity for Starred Candidates on New Job Publish | backend, ai-service
+
+### M07 — Action Pipeline: Test (Multi-round)
+US-M07-01 | HR Initiates Action Test with Round Badge | frontend, backend
+US-M07-02 | HR Selects Applicants and Assigns Test | frontend, backend
+US-M07-03 | Online Test Delivery with Anti-Cheat | frontend (portal), backend
+US-M07-04 | MCQ Auto-Grading and Manual Grading Inbox | frontend, backend
+US-M07-05 | HR Opens Phase 2 Selection and Leaderboard | frontend, backend
+US-M07-06 | HR and Supervisor CRUD Test Library | frontend, backend
+
+### M08 — Action Pipeline: Interview (Multi-round)
+US-M08-01 | HR Initiates Action Interview with Round Badge | frontend, backend
+US-M08-02 | HR Defines Scoring Criteria per Round | frontend, backend
+US-M08-03 | HR Assigns Interviewers (Supervisor + Temp) | frontend, backend
+US-M08-04 | HR Views and Manages Invite Links List | frontend, backend
+US-M08-05 | Phase 1 Interview Grading — Real-Time Per-Interviewer Scores | frontend, backend
+US-M08-06 | Phase 2 Interview Selection — Leaderboard and Final Decisions | frontend, backend
+US-M08-07 | HR Sends Interview Invitation Email (TPL05) | frontend, backend
+
+### M09 — Cross-Position Transfer
+US-M09-01 | HR Initiates Transfer During or After Interview | frontend, backend
+US-M09-02 | Transfer History Carries Over — Unlimited Transfers | backend
+US-M09-03 | System Warns HR if Target Position is Closed | frontend, backend
+US-M09-04 | Block Sending Test from Wrong Position After Transfer | backend
+
+### M10 — Talent Pool / Star Feature
+US-M10-01 | Auto-Compute Similarity for Starred Candidates Against All New Jobs | backend, ai-service
+US-M10-02 | Starred Candidates Removed from Pool on Blacklist | backend
+
+### M11 — Candidate Management
+US-M11-01 | Candidate List with Search and Filter | frontend, backend
+US-M11-02 | Candidate Detail — Full Application History and Documents | frontend, backend
+US-M11-03 | OCR Auto-Trigger on Resume Upload | backend, ai-service
+US-M11-04 | Blacklist Candidate with Mandatory Reason | frontend, backend
+US-M11-05 | Unblacklist Candidate with Mandatory Reason and History Preserved | frontend, backend
+
+### M12 — Supervisor Requisition
+US-M12-01 | Supervisor Creates and Submits Requisition | frontend, backend
+US-M12-02 | HR Reviews and Edits Requisition | frontend, backend
+US-M12-03 | HR Converts Requisition to Job Posting (1-Click Pre-Fill) | frontend, backend
+
+### M13 — Notification System
+US-M13-01 | In-App Notification Bell with Unread Badge | frontend, backend
+US-M13-02 | Per-User Notification Channel Toggle (In-App vs Email) | frontend, backend
+US-M13-03 | System Triggers All 10 Defined Notification Events | backend
+
+### M14 — Setup / Pre-configuration
+US-M14-01 | HR Manages System and Custom Email Templates | frontend, backend
+US-M14-02 | HR Creates and Manages Job Description Templates | frontend, backend
+US-M14-03 | HR Manages Master Data (Department, Employment Type, Experience Level, Hard Skill) | frontend, backend
+US-M14-04 | JD and Hard Skill Embedding Sent to AI Service After Job Create/Edit | backend, ai-service
+
+### M15 — Localization and Theme
+US-M15-01 | Thai / English Language Toggle | frontend
+US-M15-02 | All UI Text via Translation Keys (next-intl) | frontend
+US-M15-03 | Dark / Light Theme Toggle with CSS Variables | frontend
+US-M15-04 | WCAG 2.1 AA Contrast Compliance for Both Themes | frontend
+
+---
+
+## Key Gherkin AC Excerpts (SA-relevant constraints only)
+
+### Auth (M01/M02)
+- M01+M02 share one auth module; roles differentiated by flag (admin / hr / supervisor)
+- Session timeout: 30 min inactivity
+- OTP used only for HR self-service password reset (not admin-triggered)
+- Forced password change on first login for all roles
+
+### Applicant Portal (M03)
+- No login required — applicant identified by email on submit
+- Blacklist check: block submission if candidate email is blacklisted
+- OCR: async, must not block form submission — enqueue to AI service queue
+- Test link: re-openable until submit or expiry; auto-save answers
+
+### Job Posting & Pipeline (M04)
+- Job has: title, department, headcount, JD, hard skills (with weights), education, experience level, job type, default test(s), publish/close schedule
+- Auto-publish / auto-close via background scheduler (Go worker or cron)
+- Pipeline dashboard shows 5-stage milestone view + stats (Total/Remaining/Dropped/Hired)
+- Email trigger available directly from pipeline dashboard
+
+### Form Builder (M05)
+- Form JSON must support 14 field types: Text, Textarea, Dropdown, Checkbox, Radio, FileUpload, DatePicker, MCQ, ShortAnswer, Essay, TrueFalse, RatingScale, Image/Video/Link
+- Form delete blocked if referenced by active job
+- Published form stored as JSON in DB; portal renders dynamically
+
+### Resume Review (M06)
+- 3-panel layout: left=applicant list, centre=resume viewer, right=personal info + LLM Summary + Position panel
+- Overall Score = weighted avg of JD similarity + Hard Skill similarity (weights from Weight Popup)
+- Interest action → applicant status: In Progress; Reject → Dropped (send SYS02 email); Star → Starred + Dropped from current job (NO email)
+- Star button: applicant goes to Talent Pool; auto-rejected from current job
+- Similarity pre-computed async on job publish for all starred candidates
+
+### Action Test (M07)
+- Round badge per applicant (increments per round)
+- Phase 1 (Grading): real-time scores visible to HR as graders submit
+- Phase 2 (Selection): HR manually triggers; leaderboard live-updates
+- MCQ auto-graded; Essay/ShortAnswer go to Grading Inbox
+- General Test graded by HR; Technical Test graded by owning Supervisor → FRNOT05 to HR
+- Test link: same re-openable pattern as M03 (auto-save, blocked after submit)
+- Anti-cheat: copy-paste blocked, tab-switch detected and recorded, random question order
+
+### Action Interview (M08)
+- Scoring criteria: criterion name + max_score per round; locked once any grader submits
+- Interviewer types: Supervisor (existing user) + Temp (invite link → auto-created account)
+- Temp account: 256-bit token URL, auto-deactivated when round closes or link expires/revoked
+- Phase 1: per-interviewer scores real-time; HR sees who has not submitted
+- Phase 2: avg-of-averages leaderboard (avg of each interviewer's per-criterion avg)
+- Decision (Pass/Drop/Transfer/Hire) is final — no undo once confirmed
+- Drop always triggers SYS02 rejection email
+
+### Transfer (M09)
+- Only available during or after Interview (Phase 1 or Phase 2)
+- Source application closed, headcount slot returned; new Application created on target with history reference
+- Unlimited sequential transfers supported
+- If target position is Closed → warning + explicit HR confirmation required
+- Transferred applicant excluded from all action lists on source position
+
+### Talent Pool (M10)
+- Starred candidate: auto-compute similarity vs all new jobs on publish (async)
+- Blacklist removes Starred status; unblacklist does NOT restore it
+
+### Candidate Management (M11)
+- Candidate identified by email (unique key); created automatically on first application
+- HR can edit name only
+- Blacklist: mandatory reason, logs to Blacklist History (reason + timestamp + HR name)
+- Unblacklist: mandatory reason, logs append (full history preserved)
+- OCR: async trigger on resume upload → extract text + generate vector embedding
+
+### Requisition (M12)
+- Statuses: Draft → Pending → In-Progress → Published
+- Supervisor cannot edit while Pending
+- HR 1-click convert: pre-fills job form from requisition fields
+- FRNOT01: new requisition → all HR; FRNOT02: job published (from requisition) → Supervisor
+
+### Notifications (M13)
+- 10 defined events: FRNOT01–FRNOT10
+- Per-user channel toggle: In-App on/off + Email on/off per event type
+- Default channels on first login: FRNOT03/09/10 = In-App only; all others = In-App + Email
+- In-app: bell icon + unread badge + inbox panel
+
+### Setup (M14)
+- Email templates: SYS01/02/03 = read-only system templates; TPL = HR-managed custom templates
+- Template delete blocked if in use by active job/action
+- JD templates: pre-fill job form on select; delete removes from selection only
+- Master data: Department, Employment Type, Experience Level, Hard Skill — reference-check on delete
+- JD + Hard Skill embedding sent to AI service async after every job create/edit; weights stored with vectors
+
+### Localization & Theme (M15)
+- next-intl: all UI text via translation keys; th.json + en.json (nested namespaces)
+- Language persisted: user profile (logged-in) / localStorage (applicant portal)
+- Theme: CSS variables; follows OS preference on first load; persisted after user selection
+- WCAG 2.1 AA: 4.5:1 contrast in both Light and Dark themes
+- Brand: Vivid Red #F4001A (CTAs), Oxford Blue #0B1F3A (text), Plus Jakarta Sans
+
+---
+
+## Branding CI Reference
+All frontend architecture must define design tokens aligned with TigerSoft CI.
+Read docs/Tigersoft_CI_Branding.md for full color, typography, and component rules.
+Key tokens: --color-primary: #F4001A | --color-text: #0B1F3A | --font-family: Plus Jakarta Sans
+Soft rounded edges on all UI components.
+
+---
+
+[TASK]
+
+Produce the full Phase 2 System Architecture deliverable for all 67 user stories (M01–M15) across the ATS Recruitment System. This is a comprehensive architecture design — not a partial spike.
+
+Specifically deliver ALL of the following:
+
+1. **System Context Diagram** (text/ASCII or Mermaid) showing: apps/main, apps/portal, Go backend, FastAPI AI service, PostgreSQL, shared DB relationship, external email service
+
+2. **Monorepo Folder Structure** — proposed directory layout for:
+   - apps/main (Next.js pages/components + Go API handlers)
+   - apps/portal (Next.js pages + Go API handlers)
+   - services/ai (FastAPI)
+   - shared/ (types, DB migrations)
+   - infra/ (Docker Compose, env)
+
+3. **Full Database Schema** — for ALL tables needed to support M01–M15.
+   For each table provide: table name, columns (name + type + constraints), indexes, foreign keys.
+   Tables must include (additive to existing): users, jobs, applications, candidates,
+   forms, form_responses, test_rounds, test_round_applicants, test_submissions,
+   interview_rounds, interview_round_applicants, interview_criteria, interview_scores,
+   notifications, notification_preferences, email_templates, jd_templates,
+   master_data, requisitions, candidate_blacklist_log, talent_pool, invite_links,
+   similarity_scores, job_ai_profiles, position_marks, action_log
+
+4. **API Contract Table** — for every backend endpoint needed across M01–M15.
+   Format per endpoint: Method | Path | Auth | Request Body (key fields) | Response (key fields) | Notes
+   Group by module (M01–M15).
+
+5. **AI Service Endpoints** — FastAPI endpoints for:
+   - OCR: POST /ocr (input: file, output: text + vector)
+   - Embedding: POST /embed/job (input: jd_text + hard_skills + weights, output: vectors stored)
+   - Similarity: POST /similarity/compute (input: candidate_id + job_id, output: jd_score + skill_score)
+   - Batch similarity: POST /similarity/batch (input: job_id, output: scores for all starred candidates)
+
+6. **Real-time Architecture** — how Phase 1/2 leaderboards (Test + Interview) deliver live updates:
+   choose SSE or WebSocket, justify choice, describe connection lifecycle
+
+7. **Background Job Architecture** — scheduler for auto-publish/auto-close (M04) and async queues
+   for OCR (M03/M11), embedding (M14), similarity batch (M06/M10): queue technology choice + flow
+
+8. **Design Token Map** — CSS variable definitions for Light and Dark themes aligned to TigerSoft CI:
+   --color-primary, --color-secondary, --color-bg, --color-surface, --color-text,
+   --color-text-muted, --color-border, --color-danger, --color-success, --radius-base, --font-family
+
+9. **Auth Architecture** — JWT structure (claims: user_id, role, must_change_password),
+   refresh token strategy, temp interviewer token scope, session timeout mechanism (30 min)
+
+10. **Key Architectural Decisions** — list of decisions with rationale (e.g. SSE vs WS,
+    queue technology, shared DB pattern, soft-delete vs hard-delete for candidates/jobs)
+
+[OUTPUT FORMAT]
+
+Return a complete ===PHASE REPORT=== using exactly this structure:
+
+===PHASE REPORT===
+Phase   : P2
+Agent   : ats-system-architect
+Task ID : ATS-ARCH-001
+Status  : COMPLETE
+
+[OUTPUT]
+
+## 1. System Context Diagram
+<diagram>
+
+## 2. Monorepo Folder Structure
+<tree>
+
+## 3. Database Schema
+<full schema — all tables>
+
+## 4. API Contract Table
+<grouped by module M01–M15>
+
+## 5. AI Service Endpoints
+<FastAPI endpoint specs>
+
+## 6. Real-time Architecture
+<SSE/WS decision + flow>
+
+## 7. Background Job Architecture
+<scheduler + queue design>
+
+## 8. Design Token Map
+<CSS variable table — Light + Dark>
+
+## 9. Auth Architecture
+<JWT + refresh + temp token + timeout>
+
+## 10. Key Architectural Decisions
+<decision log with rationale>
+
+[HANDOFF NOTES]
+<Only what PM (Phase 3) and DEV (Phase 4) absolutely need — no reasoning>
+===END REPORT===
+===END HANDOFF===

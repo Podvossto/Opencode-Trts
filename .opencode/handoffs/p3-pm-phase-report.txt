@@ -1,0 +1,48 @@
+===PHASE REPORT===
+Phase   : P3
+Agent   : sprint-planner
+Task ID : ATS-P3-SPRINT-PLAN
+Status  : COMPLETE
+
+[OUTPUT]
+
+## Sprint Plan Summary
+
+| Sprint | Modules | Tasks | Points | Capacity | Focus |
+|--------|---------|-------|--------|----------|-------|
+| 1 | M01, M02, M03-partial | 21 | 46 | 115% | Auth + Infra foundation |
+| 2 | M03-rest, M04, M05 (BE) | 20 | 38 | 95% | Job/Form/Portal backend |
+| 3 | M04, M05 (FE complex) | 6 | 27 | 68% | Pipeline dashboard + Form builder UI |
+| 4 | M06, M07 | 8 | 38 | 95% | Resume review + Test management |
+| 5 | M08, M09 | 7 | 31 | 78% | Interview + Transfer |
+| 6 | M10, M11, M12 | 7 | 29 | 73% | Talent pool + Candidates + Requisitions |
+| 7 | M13, M14, M15 | 10 | 36 | 90% | Notifications + Setup + i18n/Theme |
+| **TOTAL** | **M01-M15** | **79** | **245** | **14 weeks** | |
+
+## Task ID Range: ATS-001 through ATS-073
+
+## Assumptions
+1. Team velocity: 40 pts/sprint (1 dev + 1 QA, 2-week sprints)
+2. Sprint 1 exceeds 80% cap due to one-time infra setup overhead — accepted
+3. AI service available as mock for integration testing from Sprint 2
+4. API contracts from P2 enable parallel FE/BE work
+
+## Flagged Items
+- ATS-038 (Form builder UI, 8 pts) — recommend split if velocity slips
+- Sprint 1 over-capacity — infra tasks (ATS-001, ATS-002) are one-time, won't recur
+
+## Files
+- `.opencode/handoffs/p3-sprint-plan-batch1.md` — Sprints 1-3 detail
+- `.opencode/handoffs/p3-sprint-plan-batch2.md` — Sprints 4-7 detail
+
+[HANDOFF NOTES]
+
+For Phase 4 (Dev):
+1. Start with Sprint 1 tasks ATS-001 (infra) and ATS-002 (Redis) — these unblock everything
+2. Critical path per sprint documented in batch files
+3. All tasks have AC tracing back to User Stories
+4. Frontend tasks require TigerSoft branding compliance (design tokens in packages/shared)
+5. 79 total tasks, IDs ATS-001 through ATS-073
+6. Risk register with 8 risks documented in batch2 file
+
+===END REPORT===

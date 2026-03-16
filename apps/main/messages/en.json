@@ -1,0 +1,106 @@
+{
+  "common": {
+    "appName": "ATS Recruitment",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search...",
+    "noResults": "No results found",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "actions": "Actions",
+    "status": "Status",
+    "all": "All"
+  },
+  "auth": {
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "loginButton": "Sign In",
+    "loginSubtitle": "Enter your credentials to access the system",
+    "invalidCredentials": "Invalid email or password",
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "changePassword": "Change Password",
+    "oldPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "passwordChanged": "Password changed successfully",
+    "mustChangePassword": "You must change your password before continuing",
+    "otpTitle": "Enter OTP",
+    "otpSubtitle": "A 6-digit code has been sent to your email",
+    "otpCode": "OTP Code",
+    "otpVerify": "Verify OTP",
+    "otpResend": "Resend OTP",
+    "otpExpired": "OTP has expired. Please request a new one.",
+    "resetPassword": "Reset Password",
+    "resetPasswordSubtitle": "Enter your email to receive a password reset OTP",
+    "requestOtp": "Request OTP",
+    "setNewPassword": "Set New Password"
+  },
+  "users": {
+    "title": "User Management",
+    "createUser": "Create User",
+    "editUser": "Edit User",
+    "deleteUser": "Deactivate User",
+    "deleteConfirm": "Are you sure you want to deactivate this user?",
+    "fullName": "Full Name",
+    "email": "Email",
+    "role": "Role",
+    "department": "Department",
+    "active": "Active",
+    "inactive": "Inactive",
+    "resetPassword": "Reset Password",
+    "resetPasswordConfirm": "Reset password for this user? They will need to change it on next login.",
+    "passwordReset": "Password has been reset",
+    "roles": {
+      "admin": "Admin",
+      "hr": "HR",
+      "supervisor": "Supervisor"
+    },
+    "filters": {
+      "searchPlaceholder": "Search by name or email...",
+      "role": "Filter by Role",
+      "department": "Filter by Department",
+      "status": "Filter by Status"
+    }
+  },
+  "jobs": {
+    "title": "Job Positions",
+    "createJob": "Create Position",
+    "department": "Department",
+    "status": "Status",
+    "applicants": "Applicants",
+    "statuses": {
+      "draft": "Draft",
+      "open": "Open",
+      "closed": "Closed"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "jobs": "Job Positions",
+    "pipeline": "Pipeline",
+    "forms": "Form Builder",
+    "resumeReview": "Resume Review",
+    "tests": "Tests",
+    "interviews": "Interviews",
+    "candidates": "Candidates",
+    "requisitions": "Requisitions",
+    "users": "Users",
+    "setup": "Setup",
+    "notifications": "Notifications"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "minLength": "Must be at least {min} characters",
+    "passwordMismatch": "Passwords do not match"
+  }
+}

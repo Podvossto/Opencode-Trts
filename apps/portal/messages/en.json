@@ -1,0 +1,26 @@
+{
+  "portal": {
+    "title": "TigerSoft Careers",
+    "tagline": "Find your next opportunity",
+    "search_placeholder": "Search positions...",
+    "filter_department": "All Departments",
+    "filter_type": "All Types",
+    "no_jobs": "No open positions at the moment. Please check back later.",
+    "loading": "Loading positions...",
+    "apply_now": "Apply Now",
+    "view_details": "View Details",
+    "slots_available": "{count} position(s) open",
+    "closing_soon": "Closing {date}",
+    "posted": "Posted {date}",
+    "requirements": "Requirements",
+    "description": "Description",
+    "back_to_jobs": "Back to Jobs",
+    "page": "Page {current} of {total}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "common": {
+    "error": "An error occurred. Please try again.",
+    "retry": "Retry"
+  }
+}
