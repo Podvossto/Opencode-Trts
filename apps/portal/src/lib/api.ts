@@ -5,7 +5,7 @@
 import axios, { type AxiosError } from 'axios'
 
 const portalApiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080',
+  baseURL: '',  // Empty = relative URLs; Next.js rewrite proxy handles /api/v1/* -> go-api
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 })

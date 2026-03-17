@@ -1,21 +1,15 @@
 /**
  * Shared TypeScript types for ATS — consumed by apps/main and apps/portal.
  * These types must mirror the Go API response contracts exactly.
+ * 
+ * Source of truth: ./auth.ts | ./job.ts | ./form.ts (canonical files)
+ * This barrel re-exports all canonical types + defines supporting types.
  */
 
 // ---------------------------------------------------------------------------
-// Auth
+// Auth — canonical: ./auth.ts
 // ---------------------------------------------------------------------------
-
-export type UserRole = 'admin' | 'hr' | 'supervisor';
-
-export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  role: UserRole;
-  must_change_password: boolean;
-}
+export type { UserRole, AuthUser, TokenPair, LoginResponse } from './auth';
 
 // ---------------------------------------------------------------------------
 // Users
@@ -26,7 +20,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: UserRole;
+  role: import('./auth').UserRole;
   department_id: string | null;
   is_active: boolean;
   must_change_password: boolean;
@@ -40,27 +34,9 @@ export interface Department {
 }
 
 // ---------------------------------------------------------------------------
-// Jobs
+// Jobs — canonical: ./job.ts
 // ---------------------------------------------------------------------------
-
-export type JobStatus = 'draft' | 'open' | 'closed';
-
-export interface Job {
-  id: string;
-  title: string;
-  department: Department;
-  employment_type: EmploymentType;
-  experience_level: ExperienceLevel;
-  form_id: string;
-  description: string;
-  requirements: string;
-  slots: number;
-  status: JobStatus;
-  publish_at: string | null;
-  close_at: string | null;
-  hard_skills: JobHardSkill[];
-  created_at: string;
-}
+export type { JobStatus, HardSkillWeight, Job, PublicJob } from './job';
 
 export interface EmploymentType {
   id: string;
@@ -77,47 +53,10 @@ export interface HardSkill {
   name: string;
 }
 
-export interface JobHardSkill {
-  skill: HardSkill;
-  weight: number; // 1-5
-}
-
 // ---------------------------------------------------------------------------
-// Forms
+// Forms — canonical: ./form.ts
 // ---------------------------------------------------------------------------
-
-export type FieldType =
-  | 'text'
-  | 'textarea'
-  | 'dropdown'
-  | 'checkbox'
-  | 'radio'
-  | 'file_upload'
-  | 'date_picker'
-  | 'mcq'
-  | 'short_answer'
-  | 'essay'
-  | 'true_false'
-  | 'rating_scale'
-  | 'image'
-  | 'video'
-  | 'link';
-
-export interface FormField {
-  id: string;
-  type: FieldType;
-  label: string;
-  required: boolean;
-  options?: string[];
-  order: number;
-}
-
-export interface ApplicationForm {
-  id: string;
-  name: string;
-  form_schema: FormField[];
-  created_at: string;
-}
+export type { FormFieldType, FormField, ApplicationForm } from './form';
 
 // ---------------------------------------------------------------------------
 // Applications

@@ -1,7 +1,7 @@
 ---
 description: "Use this agent when the SDLC Orchestrator delegates Phase 2 System Design work: architecture design, database schema (ERD), API contracts, service boundaries, data models, and ADRs for the ATS Recruitment system. Do NOT use for writing implementation code, user stories, sprint planning, or Notion updates."
 model: github-copilot/claude-sonnet-4.6
-budgetTokens: 1024
+budgetTokens: 5000
 mode: primary
 color: primary
 ---

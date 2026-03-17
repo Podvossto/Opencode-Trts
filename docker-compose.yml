@@ -61,7 +61,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "-O-", "http://localhost:8080/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -93,10 +93,11 @@ services:
   # ---------------------------------------------------------------------------
   main-app:
     build:
-      context: ./apps/main
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/main/Dockerfile
     environment:
-      NEXT_PUBLIC_API_URL: http://go-api:8080
+      INTERNAL_API_URL: http://go-api:8080
+      NEXT_PUBLIC_API_URL: ""
       NODE_ENV: production
     ports:
       - "3000:3000"
@@ -109,10 +110,11 @@ services:
   # ---------------------------------------------------------------------------
   portal-app:
     build:
-      context: ./apps/portal
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/portal/Dockerfile
     environment:
-      NEXT_PUBLIC_API_URL: http://go-api:8080
+      INTERNAL_API_URL: http://go-api:8080
+      NEXT_PUBLIC_API_URL: ""
       NODE_ENV: production
     ports:
       - "3001:3001"

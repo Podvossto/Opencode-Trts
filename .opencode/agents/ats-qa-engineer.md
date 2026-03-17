@@ -1,7 +1,7 @@
 ---
 description: "Use this agent for Phase 5 Quality Assurance on implemented ATS Recruitment tasks. Produces test cases from acceptance criteria, Playwright E2E scripts (frontend), Go test files (backend), TigerSoft Branding CI validation, and QA sign-off reports."
 model: github-copilot/claude-sonnet-4.6
-budgetTokens: 1024
+budgetTokens: 5000
 mode: primary
 color: warning
 ---

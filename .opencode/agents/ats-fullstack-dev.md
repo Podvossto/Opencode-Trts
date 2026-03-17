@@ -1,6 +1,7 @@
 ---
 description: "Use this agent for Phase 4 implementation tasks in the ATS Recruitment monorepo. Invoked by the Orchestrator after Phase 2 specs (API contracts, DB schemas) are finalized. Handles frontend (Next.js/TypeScript), backend (Go), AI service (FastAPI), and infrastructure (Docker) work — in parallel when no blocking dependency exists."
 model: opencode/MiniMax M2.5 Free
+budgetTokens: 10000 
 mode: primary
 color: accent
 ---

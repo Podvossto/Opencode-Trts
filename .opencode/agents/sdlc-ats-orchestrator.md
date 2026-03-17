@@ -1,7 +1,7 @@
 ---
 description: "Use this agent to start a new feature from SRS or run a full SDLC cycle for the ATS Recruitment system. Coordinates 5 specialized agents across a 6-phase SDLC. Do NOT use for isolated tasks such as fixing a single bug, writing one test case, or a one-off code change without full SDLC context."
 model: github-copilot/claude-sonnet-4.6
-budgetTokens: 1024
+budgetTokens: 10000
 mode: primary
 color: info
 tools:

@@ -1,0 +1,36 @@
+# Node modules (all apps)
+**/node_modules
+**/.next
+**/dist
+**/build
+
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+docker-compose*.yml
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test / coverage
+**/coverage
+**/__tests__
+**/*.test.*
+**/*.spec.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env
+.env.local
+.env.*.local

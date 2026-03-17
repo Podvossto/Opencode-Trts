@@ -7,6 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 
 	"github.com/tigersoft/ats-go-api/config"
 	"github.com/tigersoft/ats-go-api/internal/applications"
@@ -18,8 +22,6 @@ import (
 	"github.com/tigersoft/ats-go-api/internal/users"
 	"github.com/tigersoft/ats-go-api/pkg/database"
 	"github.com/tigersoft/ats-go-api/pkg/redis"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -39,6 +41,16 @@ func main() {
 
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
+
+	// CORS — allow configured origins (defaults: localhost:3000 + localhost:3001)
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     cfg.CORSOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// Register route groups
 	v1 := r.Group("/api/v1")

@@ -5,6 +5,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all runtime configuration for the API server.
@@ -20,6 +21,7 @@ type Config struct {
 	SMTPUser     string
 	SMTPPass     string
 	SMTPFrom     string
+	CORSOrigins  []string // allowed origins for CORS
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -36,6 +38,7 @@ func Load() *Config {
 		SMTPUser:     getEnv("SMTP_USER", ""),
 		SMTPPass:     getEnv("SMTP_PASS", ""),
 		SMTPFrom:     getEnv("SMTP_FROM", "noreply@tigersoft.com"),
+		CORSOrigins:  getEnvSlice("CORS_ORIGINS", []string{"http://localhost:3000", "http://localhost:3001"}),
 	}
 	return cfg
 }
@@ -52,6 +55,20 @@ func getEnvInt(key string, fallback int) int {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
+	}
+	return fallback
+}
+
+func getEnvSlice(key string, fallback []string) []string {
+	if v := os.Getenv(key); v != "" {
+		parts := strings.Split(v, ",")
+		out := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				out = append(out, trimmed)
+			}
+		}
+		return out
 	}
 	return fallback
 }

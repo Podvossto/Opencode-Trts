@@ -22,7 +22,7 @@
     --secondary: 180 9% 87%;
     --secondary-foreground: 213 70% 14%;
 
-    /* Vivid Red as destructive (same hue) */
+    /* Vivid Red as destructive */
     --destructive: 353 100% 48%;
     --destructive-foreground: 0 0% 100%;
 
@@ -84,14 +84,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* TigerSoft CI rule: NEVER use #000000 for text */
+  /* TigerSoft CI: NEVER use #000000 for text */
   h1, h2, h3, h4, h5, h6 {
     @apply font-medium;
-    color: hsl(213, 70%, 14%); /* Oxford Blue */
+    color: hsl(213, 70%, 14%);
   }
 
-  /* Focus ring — Vivid Red 3px (from Branding CI) */
+  /* Focus ring — Vivid Red 3px */
   :focus-visible {
-    @apply outline-none ring-2 ring-vivid-red ring-offset-2;
+    @apply outline-none ring-2 ring-primary ring-offset-2;
   }
 }

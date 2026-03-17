@@ -1,5 +1,5 @@
 // Purpose: Auth feature — actions for login, logout, OTP, password change
-// Ref: API Contract — POST /api/v1/auth/login | /logout | /otp/request | /otp/verify |
+// Ref: API Contract — POST /api/v1/auth/login | /logout | /otp/request |
 //                     POST /api/v1/auth/password/reset | PUT /api/v1/auth/password/change
 
 import { post, put } from '@/lib/api'
@@ -32,20 +32,23 @@ export async function loginAction(email: string, password: string): Promise<Logi
       password,
     })
 
-    const { access_token, user } = res.data
+    // Go API returns flat fields: access_token, expires_in, role, must_change_password
+    const { access_token, expires_in, must_change_password } = res.data
 
-    // Decode token to get expiry for cookie TTL
+    // Decode token to get expiry for cookie TTL — fall back to API-provided expires_in
     const payload = decodeToken(access_token)
-    const expiresIn = payload ? payload.exp - Math.floor(Date.now() / 1000) : 1800 // default 30min
+    const expiresIn = payload
+      ? payload.exp - Math.floor(Date.now() / 1000)
+      : (expires_in ?? 1800)
 
     setToken(access_token, expiresIn)
 
     return {
       success: true,
-      mustChangePassword: user.must_change_password,
+      mustChangePassword: must_change_password,
     }
   } catch (err: unknown) {
-    const axiosErr = err as { response?: { status?: number; data?: { message?: string } } }
+    const axiosErr = err as { response?: { status?: number; data?: { message?: string; error?: string } } }
     if (axiosErr.response?.status === 401) {
       return { success: false, error: 'Invalid email or password' }
     }

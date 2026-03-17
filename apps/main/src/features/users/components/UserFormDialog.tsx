@@ -82,7 +82,8 @@ export function UserFormDialog({
     }
   }
 
-  const form = isEdit ? editForm : createForm
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const form = (isEdit ? editForm : createForm) as ReturnType<typeof useForm<any>>
   const errors = form.formState.errors
 
   return (
@@ -123,7 +124,7 @@ export function UserFormDialog({
                 {...form.register('first_name')}
               />
               {errors.first_name && (
-                <p className="text-xs text-destructive">{errors.first_name.message}</p>
+                <p className="text-xs text-destructive">{String(errors.first_name?.message ?? '')}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -134,7 +135,7 @@ export function UserFormDialog({
                 {...form.register('last_name')}
               />
               {errors.last_name && (
-                <p className="text-xs text-destructive">{errors.last_name.message}</p>
+                <p className="text-xs text-destructive">{String(errors.last_name?.message ?? '')}</p>
               )}
             </div>
           </div>
@@ -156,7 +157,7 @@ export function UserFormDialog({
               </SelectContent>
             </Select>
             {errors.role && (
-              <p className="text-xs text-destructive">{errors.role.message}</p>
+              <p className="text-xs text-destructive">{String(errors.role?.message ?? '')}</p>
             )}
           </div>
 

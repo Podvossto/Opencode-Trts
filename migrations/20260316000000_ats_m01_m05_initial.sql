@@ -235,6 +235,20 @@ INSERT INTO experience_levels (name) VALUES
     ('Executive')
 ON CONFLICT (name) DO NOTHING;
 
+
+-- Seed: default system admin (password: Admin@1234, bcrypt cost 10)
+-- Change this password immediately after first login in production.
+INSERT INTO users (email, password_hash, first_name, last_name, role, is_active, must_change_password)
+VALUES (
+    'admin@tigersoft.com',
+    '$2a$10$qyoHvOXS5c1dWLDcwVMwWOz6LPdeERTu2LLM/g30KzKytu04VBMPi',
+    'System',
+    'Admin',
+    'admin',
+    true,
+    false
+)
+ON CONFLICT (email) DO NOTHING;
 COMMIT;
 
 -- Down migration (run manually to rollback):
