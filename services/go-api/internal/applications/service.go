@@ -130,6 +130,60 @@ func (s *applicationService) Autosave(ctx context.Context, jobID uuid.UUID, emai
 	return errors.New("not implemented")
 }
 
-func (s *applicationService) ListForPipeline(ctx context.Context, jobID uuid.UUID, filters map[string]string) ([]Application, error) {
-	return nil, errors.New("not implemented")
+func (s *applicationService) ListForPipeline(ctx context.Context, jobID *uuid.UUID, statusFilter *string, page, limit int) ([]Application, int, error) {
+	apps, total, err := s.repo.ListApplications(ctx, jobID, statusFilter, page, limit)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list applications: %w", err)
+	}
+
+	result := make([]Application, len(apps))
+	for i, app := range apps {
+		result[i] = Application{
+			ID:          app.ID,
+			CandidateID: app.CandidateID,
+			JobID:       app.JobID,
+			Status:      ApplicationStatus(app.Status),
+			FormData:    app.FormData,
+			SubmittedAt: app.SubmittedAt.Time,
+			CreatedAt:   app.CreatedAt.Time,
+		}
+	}
+	return result, total, nil
+}
+
+func (s *applicationService) GetStatus(ctx context.Context, id uuid.UUID) (*ApplicationStatusResponse, error) {
+	app, err := s.repo.GetApplicationByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get application: %w", err)
+	}
+	if app == nil {
+		return nil, nil
+	}
+
+	stage := getStageFromStatus(app.Status)
+
+	return &ApplicationStatusResponse{
+		ID:     app.ID,
+		Status: ApplicationStatus(app.Status),
+		Stage:  stage,
+	}, nil
+}
+
+func getStageFromStatus(status string) string {
+	switch status {
+	case "pending":
+		return "application_received"
+	case "in_review":
+		return "application_review"
+	case "testing":
+		return "assessment"
+	case "interviewing":
+		return "interview"
+	case "hired":
+		return "offer_accepted"
+	case "dropped":
+		return "rejected"
+	default:
+		return "application_received"
+	}
 }

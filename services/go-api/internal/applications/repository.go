@@ -69,6 +69,7 @@ type RepositoryInterface interface {
 	CreateApplication(ctx context.Context, candidateID, jobID uuid.UUID, formData map[string]interface{}) (*ApplicationRow, error)
 	GetApplicationByID(ctx context.Context, id uuid.UUID) (*ApplicationRow, error)
 	GetApplicationByCandidateAndJob(ctx context.Context, candidateID, jobID uuid.UUID) (*ApplicationRow, error)
+	ListApplications(ctx context.Context, jobID *uuid.UUID, statusFilter *string, page, limit int) ([]ApplicationRow, int, error)
 
 	// Document operations
 	CreateApplicationDocument(ctx context.Context, appID uuid.UUID, fileType, fileURL, fileName string, fileSizeKB *int32) (*ApplicationDocumentRow, error)
@@ -207,4 +208,56 @@ func (r *Repository) UpdateApplicationDocumentOCRStatus(ctx context.Context, doc
 		return fmt.Errorf("update document ocr status: %w", err)
 	}
 	return nil
+}
+
+// ListApplications retrieves applications with filtering and pagination
+func (r *Repository) ListApplications(ctx context.Context, jobID *uuid.UUID, statusFilter *string, page, limit int) ([]ApplicationRow, int, error) {
+	offset := (page - 1) * limit
+
+	args := []interface{}{}
+	args = append(args, limit, offset)
+
+	countQuery := "SELECT COUNT(*) FROM applications WHERE 1=1"
+	query := `
+		SELECT id, candidate_id, job_id, status, form_data, ocr_status, similarity_score, submitted_at, created_at
+		FROM applications WHERE 1=1`
+
+	argIdx := 1
+	if jobID != nil {
+		countQuery += fmt.Sprintf(" AND job_id = $%d", argIdx)
+		query += fmt.Sprintf(" AND job_id = $%d", argIdx)
+		args = append(args, *jobID)
+		argIdx++
+	}
+	if statusFilter != nil {
+		countQuery += fmt.Sprintf(" AND status = $%d", argIdx)
+		query += fmt.Sprintf(" AND status = $%d", argIdx)
+		args = append(args, *statusFilter)
+		argIdx++
+	}
+
+	var total int
+	err := r.db.QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count applications: %w", err)
+	}
+
+	query += " ORDER BY submitted_at DESC LIMIT $" + fmt.Sprintf("%d", argIdx) + " OFFSET $" + fmt.Sprintf("%d", argIdx+1)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list applications: %w", err)
+	}
+	defer rows.Close()
+
+	var apps []ApplicationRow
+	for rows.Next() {
+		var a ApplicationRow
+		if err := rows.Scan(&a.ID, &a.CandidateID, &a.JobID, &a.Status, &a.FormData, &a.OCRStatus, &a.SimilarityScore, &a.SubmittedAt, &a.CreatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan application: %w", err)
+		}
+		apps = append(apps, a)
+	}
+
+	return apps, total, nil
 }

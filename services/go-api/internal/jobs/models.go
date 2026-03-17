@@ -23,6 +23,7 @@ type Job struct {
 	PublishAt         *time.Time `json:"publish_at,omitempty"`
 	CloseAt           *time.Time `json:"close_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
+	CreatedBy         uuid.UUID  `json:"created_by"`
 }
 
 // CreateJobRequest is the request body for POST /api/v1/jobs
@@ -35,15 +36,33 @@ type CreateJobRequest struct {
 	Description       string            `json:"description" binding:"required"`
 	Requirements      string            `json:"requirements"`
 	Slots             int               `json:"slots" binding:"required,min=1"`
+	Status            string            `json:"status"`
 	PublishAt         *time.Time        `json:"publish_at"`
 	CloseAt           *time.Time        `json:"close_at"`
 	HardSkills        []HardSkillWeight `json:"hard_skills"`
 }
 
-// HardSkillWeight pairs a skill with a 1-5 weight ratio
+// HardSkillWeight pairs a skill name with a 1-10 weight
 type HardSkillWeight struct {
-	SkillID uuid.UUID `json:"skill_id"`
-	Weight  int       `json:"weight" binding:"min=1,max=5"`
+	SkillName string `json:"skill_name" binding:"required"`
+	Weight    int    `json:"weight" binding:"required,min=1,max=10"`
+}
+
+// JobHardSkill represents a hard skill requirement for a job
+type JobHardSkill struct {
+	ID        uuid.UUID `json:"id"`
+	JobID     uuid.UUID `json:"job_id"`
+	SkillName string    `json:"skill_name"`
+	Weight    int       `json:"weight"`
+}
+
+// JobFilter holds filter parameters for listing jobs
+type JobFilter struct {
+	Status     string
+	Department string
+	Search     string
+	Page       int
+	Limit      int
 }
 
 // UpdateJobRequest is the request body for PUT /api/v1/jobs/:id

@@ -1,6 +1,6 @@
 // Purpose: Jobs domain — service layer (business logic)
 // ATS-012: Portal public job listing + detail
-// Full job CRUD (Sprint 2) will be added later
+// ATS-026: Job CRUD with hard skill weights
 package jobs
 
 import (
@@ -138,4 +138,115 @@ func (s *PortalService) GetDashboardStats(ctx context.Context, jobID uuid.UUID) 
 	}
 
 	return stats, nil
+}
+
+// JobService implements job CRUD business logic
+type JobService struct {
+	repo *Repository
+}
+
+// NewJobService creates a new job service
+func NewJobService(repo *Repository) *JobService {
+	return &JobService{repo: repo}
+}
+
+// JobWithSkills represents a job with its hard skills
+type JobWithSkills struct {
+	Job        Job            `json:"job"`
+	HardSkills []JobHardSkill `json:"hard_skills"`
+}
+
+// JobListResponse wraps paginated jobs
+type JobListResponse struct {
+	Data       []JobWithSkills `json:"data"`
+	Total      int             `json:"total"`
+	Page       int             `json:"page"`
+	Limit      int             `json:"limit"`
+	TotalPages int             `json:"total_pages"`
+}
+
+// CreateJob creates a new job with hard skills
+func (s *JobService) CreateJob(ctx context.Context, job Job, skills []JobHardSkill) (Job, error) {
+	if job.Status == "" {
+		job.Status = "draft"
+	}
+	createdJob, err := s.repo.CreateJob(ctx, job, skills)
+	if err != nil {
+		return Job{}, fmt.Errorf("create job: %w", err)
+	}
+	return createdJob, nil
+}
+
+// ListJobs retrieves paginated jobs with filters
+func (s *JobService) ListJobs(ctx context.Context, filter JobFilter) (*JobListResponse, error) {
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 || filter.Limit > 50 {
+		filter.Limit = 10
+	}
+
+	jobs, total, err := s.repo.ListJobs(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("list jobs: %w", err)
+	}
+
+	data := make([]JobWithSkills, len(jobs))
+	for i, job := range jobs {
+		_, skills, err := s.repo.GetJobByID(ctx, job.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("get job skills: %w", err)
+		}
+		data[i] = JobWithSkills{
+			Job:        job,
+			HardSkills: skills,
+		}
+	}
+
+	totalPages := total / filter.Limit
+	if total%filter.Limit != 0 {
+		totalPages++
+	}
+
+	return &JobListResponse{
+		Data:       data,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+// GetJobByID retrieves a job by ID with its hard skills
+func (s *JobService) GetJobByID(ctx context.Context, id string) (*JobWithSkills, error) {
+	job, skills, err := s.repo.GetJobByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get job: %w", err)
+	}
+	if job.ID == uuid.Nil {
+		return nil, nil
+	}
+
+	return &JobWithSkills{
+		Job:        job,
+		HardSkills: skills,
+	}, nil
+}
+
+// UpdateJob updates a job and its hard skills
+func (s *JobService) UpdateJob(ctx context.Context, id string, job Job, skills []JobHardSkill) (Job, error) {
+	updatedJob, err := s.repo.UpdateJob(ctx, id, job, skills)
+	if err != nil {
+		return Job{}, fmt.Errorf("update job: %w", err)
+	}
+	return updatedJob, nil
+}
+
+// DeleteJob deletes a job by ID
+func (s *JobService) DeleteJob(ctx context.Context, id string) error {
+	err := s.repo.DeleteJob(ctx, id)
+	if err != nil {
+		return fmt.Errorf("delete job: %w", err)
+	}
+	return nil
 }
