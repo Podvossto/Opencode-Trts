@@ -121,3 +121,21 @@ func (s *PortalService) GetPublicJob(ctx context.Context, id uuid.UUID) (*Public
 		FormSchema: json.RawMessage(row.FormSchema),
 	}, nil
 }
+
+// GetDashboardStats retrieves pipeline statistics for a job (ATS-028)
+func (s *PortalService) GetDashboardStats(ctx context.Context, jobID uuid.UUID) (*DashboardStats, error) {
+	exists, err := s.repo.JobExists(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("check job exists: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+
+	stats, err := s.repo.GetDashboardStats(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("get dashboard stats: %w", err)
+	}
+
+	return stats, nil
+}

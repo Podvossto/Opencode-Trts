@@ -130,3 +130,40 @@ func (r *Repository) GetPublicJobByID(ctx context.Context, id uuid.UUID) (*Publi
 	}
 	return &j, nil
 }
+
+// DashboardStats holds the pipeline dashboard statistics for a job
+type DashboardStats struct {
+	Total     int `json:"total"`
+	Remaining int `json:"remaining"`
+	Dropped   int `json:"dropped"`
+	Hired     int `json:"hired"`
+}
+
+// GetDashboardStats retrieves pipeline stats for a job
+func (r *Repository) GetDashboardStats(ctx context.Context, jobID uuid.UUID) (*DashboardStats, error) {
+	var stats DashboardStats
+
+	err := r.db.QueryRow(ctx, `
+		SELECT 
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE status NOT IN ('dropped', 'hired', 'transferred')) as remaining,
+			COUNT(*) FILTER (WHERE status = 'dropped') as dropped,
+			COUNT(*) FILTER (WHERE status = 'hired') as hired
+		FROM applications WHERE job_id = $1`, jobID).
+		Scan(&stats.Total, &stats.Remaining, &stats.Dropped, &stats.Hired)
+	if err != nil {
+		return nil, fmt.Errorf("get dashboard stats: %w", err)
+	}
+
+	return &stats, nil
+}
+
+// JobExists checks if a job exists by ID
+func (r *Repository) JobExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE id = $1)`, id).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check job exists: %w", err)
+	}
+	return exists, nil
+}

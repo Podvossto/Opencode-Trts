@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -18,6 +19,7 @@ import (
 	"github.com/tigersoft/ats-go-api/internal/forms"
 	"github.com/tigersoft/ats-go-api/internal/jobs"
 	"github.com/tigersoft/ats-go-api/internal/pipeline"
+	"github.com/tigersoft/ats-go-api/internal/portal"
 	"github.com/tigersoft/ats-go-api/internal/scheduler"
 	"github.com/tigersoft/ats-go-api/internal/users"
 	"github.com/tigersoft/ats-go-api/pkg/database"
@@ -60,9 +62,12 @@ func main() {
 	forms.RegisterRoutes(v1, db, rdb, cfg)
 	applications.RegisterRoutes(v1, db, rdb, cfg)
 	pipeline.RegisterRoutes(v1, db, rdb, cfg)
+	portal.RegisterRoutes(v1, db, rdb, cfg)
 
-	// Background scheduler — auto-publish/close jobs (1-minute tick)
-	go scheduler.Start(db, cfg)
+	// Background scheduler — auto-publish/close jobs (60-second tick)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go scheduler.Start(ctx, db, cfg)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {

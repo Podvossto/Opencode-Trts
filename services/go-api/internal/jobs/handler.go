@@ -61,3 +61,25 @@ func (h *PortalHandler) GetPublicJob(c *gin.Context) {
 
 	response.OK(c, job)
 }
+
+// GetDashboardStats handles GET /api/v1/jobs/:id/dashboard (ATS-028)
+func (h *PortalHandler) GetDashboardStats(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, []response.ValidationError{{Field: "id", Message: "invalid UUID"}})
+		return
+	}
+
+	stats, err := h.svc.GetDashboardStats(c.Request.Context(), id)
+	if err != nil {
+		log.Printf("get dashboard stats error: %v", err)
+		response.InternalServerError(c)
+		return
+	}
+	if stats == nil {
+		response.NotFound(c)
+		return
+	}
+
+	response.OK(c, stats)
+}
