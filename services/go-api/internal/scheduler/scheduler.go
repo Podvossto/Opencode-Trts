@@ -7,6 +7,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -15,32 +16,49 @@ import (
 )
 
 // Start launches the background scheduler. Call as a goroutine from main.
-func Start(db *pgxpool.Pool, cfg *config.Config) {
-	ticker := time.NewTicker(1 * time.Minute)
+func Start(ctx context.Context, db *pgxpool.Pool, cfg *config.Config) {
+	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
-	log.Println("[scheduler] started — 1-minute tick")
+	log.Println("[scheduler] started — 60-second tick")
 
-	for range ticker.C {
-		ctx := context.Background()
-		if err := publishDueJobs(ctx, db); err != nil {
-			log.Printf("[scheduler] publishDueJobs error: %v", err)
-		}
-		if err := closeDueJobs(ctx, db); err != nil {
-			log.Printf("[scheduler] closeDueJobs error: %v", err)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("[scheduler] stopped")
+			return
+		case <-ticker.C:
+			if err := publishDueJobs(ctx, db); err != nil {
+				log.Printf("[scheduler] publishDueJobs error: %v", err)
+			}
+			if err := closeDueJobs(ctx, db); err != nil {
+				log.Printf("[scheduler] closeDueJobs error: %v", err)
+			}
 		}
 	}
 }
 
-// publishDueJobs sets status='open' for jobs where publish_at <= now AND status='draft'
+// publishDueJobs sets status='open' for jobs where publish_at <= now AND status='scheduled'
 func publishDueJobs(ctx context.Context, db *pgxpool.Pool) error {
-	// Dev must implement: UPDATE jobs SET status='open' WHERE publish_at <= NOW() AND status='draft'
+	_, err := db.Exec(ctx, `
+		UPDATE jobs 
+		SET status = 'open', updated_at = NOW() 
+		WHERE status = 'scheduled' AND publish_at <= NOW()`)
+	if err != nil {
+		return fmt.Errorf("publish due jobs: %w", err)
+	}
 	return nil
 }
 
 // closeDueJobs sets status='closed' for jobs where close_at <= now AND status='open'
 // Must NOT affect in-progress applications (applications.status != 'pending')
 func closeDueJobs(ctx context.Context, db *pgxpool.Pool) error {
-	// Dev must implement: UPDATE jobs SET status='closed' WHERE close_at <= NOW() AND status='open'
+	_, err := db.Exec(ctx, `
+		UPDATE jobs 
+		SET status = 'closed', updated_at = NOW() 
+		WHERE status = 'open' AND close_at <= NOW() AND close_at IS NOT NULL`)
+	if err != nil {
+		return fmt.Errorf("close due jobs: %w", err)
+	}
 	return nil
 }
