@@ -9,12 +9,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/tigersoft/ats-go-api/config"
+	"github.com/tigersoft/ats-go-api/internal/email"
+	"github.com/tigersoft/ats-go-api/internal/middleware"
 )
 
 // RegisterRoutes mounts pipeline action routes.
 func RegisterRoutes(rg *gin.RouterGroup, db *pgxpool.Pool, rdb *redis.Client, cfg *config.Config) {
-	// Dev must implement:
-	// PUT  /applications/:id/status  — HR moves applicant to next stage
-	// POST /applications/:id/email   — HR triggers email to applicant
-	// PUT  /applications/:id/transfer — HR transfers applicant to different job
+	repo := NewRepository(db)
+	emailSender := email.NewSMTPSender(email.Config{
+		Host: cfg.SMTPHost,
+		Port: cfg.SMTPPort,
+		User: cfg.SMTPUser,
+		Pass: cfg.SMTPPass,
+		From: cfg.SMTPFrom,
+	})
+	svc := NewPipelineService(repo, emailSender)
+	h := NewHandler(svc)
+
+	pipeline := rg.Group("/pipeline")
+	pipeline.Use(middleware.AuthMiddleware(cfg, rdb))
+	pipeline.Use(middleware.RequireRole("admin", "hr"))
+	{
+		pipeline.POST("/jobs/:jobId/email", h.SendApplicantEmail)
+	}
+
+	apps := rg.Group("/applications")
+	apps.Use(middleware.AuthMiddleware(cfg, rdb))
+	apps.Use(middleware.RequireRole("admin", "hr"))
+	{
+		apps.PUT("/:id/status", h.UpdateApplicationStatus)
+	}
 }
