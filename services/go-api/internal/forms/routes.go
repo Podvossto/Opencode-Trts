@@ -1,5 +1,5 @@
-// Purpose: Forms domain — application form builder CRUD (stores schema as JSONB)
-// Ref: ATS-030 — Form CRUD with reference check on delete
+// Purpose: Forms domain - application form builder CRUD (stores schema as JSONB)
+// Ref: ATS-030 - Form CRUD with reference check on delete
 // DB tables: application_forms
 package forms
 
@@ -34,17 +34,14 @@ func RegisterRoutes(rg *gin.RouterGroup, db *pgxpool.Pool, rdb *redis.Client, cf
 	}
 }
 
-// NewRepository creates a new form repository (alias for DI wiring)
 func NewRepository(db *pgxpool.Pool) *formRepository {
 	return newFormRepository(db)
 }
 
-// NewService creates a new form service from a repository
 func NewService(repo *formRepository) FormService {
 	return &formService{repo: repo}
 }
 
-// NewHandler creates a new form HTTP handler
 func NewHandler(svc FormService) *FormHandler {
 	return NewFormHandler(svc)
 }
@@ -88,7 +85,7 @@ type ApplicationForm struct {
 }
 
 type FormService interface {
-	List(ctx context.Context, page, limit int, published *bool) ([]ApplicationForm, int, error)
+	List(ctx context.Context) ([]ApplicationForm, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*ApplicationForm, error)
 	Create(ctx context.Context, req CreateFormRequest) (*ApplicationForm, error)
 	Update(ctx context.Context, id uuid.UUID, req CreateFormRequest) (*ApplicationForm, error)
