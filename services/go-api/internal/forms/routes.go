@@ -84,8 +84,16 @@ type ApplicationForm struct {
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
+type ListResponse struct {
+	Forms []ApplicationForm `json:"forms"`
+	Total int               `json:"total"`
+	Page  int               `json:"page"`
+	Limit int               `json:"limit"`
+}
+
+// FormService defines the form builder business logic contract.
 type FormService interface {
-	List(ctx context.Context) ([]ApplicationForm, error)
+	List(ctx context.Context, page, limit int, published *bool) ([]ApplicationForm, int, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*ApplicationForm, error)
 	Create(ctx context.Context, req CreateFormRequest) (*ApplicationForm, error)
 	Update(ctx context.Context, id uuid.UUID, req CreateFormRequest) (*ApplicationForm, error)
