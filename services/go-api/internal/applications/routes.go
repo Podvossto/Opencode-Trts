@@ -18,16 +18,31 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/tigersoft/ats-go-api/config"
+	"github.com/tigersoft/ats-go-api/internal/middleware"
+	"github.com/tigersoft/ats-go-api/internal/ocr_worker"
 )
 
 // RegisterRoutes mounts all application routes.
 func RegisterRoutes(rg *gin.RouterGroup, db *pgxpool.Pool, rdb *redis.Client, cfg *config.Config) {
-	// Dev must implement:
-	// POST /portal/applications          — submit application (blacklist check, duplicate check)
-	// GET  /portal/applications/:id      — applicant status view
-	// POST /portal/applications/autosave — autosave partial form data
-	// GET  /applications                 — HR list view (pipeline)
-	// GET  /applications/:id             — HR detail view
+	repo := NewRepository(db)
+	ocrWorker := ocr_worker.NewWorker(db, cfg.AIServiceURL, 100)
+	svc := NewApplicationService(repo, ocrWorker)
+	h := NewApplicationHandler(svc)
+
+	portal := rg.Group("/portal")
+	{
+		portal.POST("/apply", h.SubmitApplication)
+		portal.GET("/applications/:id/status", h.GetApplicationStatus)
+		portal.POST("/applications/:id/autosave", h.AutosaveApplication)
+	}
+
+	apps := rg.Group("/applications")
+	apps.Use(middleware.AuthMiddleware(cfg, rdb))
+	apps.Use(middleware.RequireRole("admin", "hr"))
+	{
+		apps.GET("", h.ListApplications)
+		apps.GET("/:id", h.GetApplication)
+	}
 }
 
 // ApplicationStatus is the pipeline stage enum
@@ -67,7 +82,16 @@ type SubmitApplicationRequest struct {
 // ApplicationService defines the application business logic contract.
 type ApplicationService interface {
 	Submit(ctx context.Context, req SubmitApplicationRequest) (*Application, error)
+	SubmitWithDocument(ctx context.Context, req SubmitApplicationRequest, fileType, fileURL, fileName string, fileSizeKB *int32) (*Application, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Application, error)
+	GetStatus(ctx context.Context, id uuid.UUID) (*ApplicationStatusResponse, error)
 	Autosave(ctx context.Context, jobID uuid.UUID, email string, data map[string]interface{}) error
-	ListForPipeline(ctx context.Context, jobID uuid.UUID, filters map[string]string) ([]Application, error)
+	ListForPipeline(ctx context.Context, jobID *uuid.UUID, statusFilter *string, page, limit int) ([]Application, int, error)
+}
+
+// ApplicationStatusResponse is the status view response
+type ApplicationStatusResponse struct {
+	ID     uuid.UUID         `json:"application_id"`
+	Status ApplicationStatus `json:"status"`
+	Stage  string            `json:"stage"`
 }
