@@ -1,11 +1,13 @@
 // Purpose: Jobs domain — repository layer (database queries)
-// DB tables: jobs, departments, employment_types, experience_levels, application_forms
+// DB tables: jobs, departments, employment_types, experience_levels, application_forms, job_hard_skills
 // ATS-012: Portal public job listing + detail
+// ATS-026: Job CRUD with hard skill weights
 package jobs
 
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -166,4 +168,238 @@ func (r *Repository) JobExists(ctx context.Context, id uuid.UUID) (bool, error) 
 		return false, fmt.Errorf("check job exists: %w", err)
 	}
 	return exists, nil
+}
+
+// CreateJob inserts a new job with its hard skills in a transaction
+func (r *Repository) CreateJob(ctx context.Context, job Job, skills []JobHardSkill) (Job, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return Job{}, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var id uuid.UUID
+	var createdAt time.Time
+	err = tx.QueryRow(ctx, `
+		INSERT INTO jobs (title, department_id, employment_type_id, experience_level_id, 
+		                  form_id, description, requirements, slots, status, publish_at, close_at, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id, created_at`,
+		job.Title, job.DepartmentID, job.EmploymentTypeID, job.ExperienceLevelID,
+		job.FormID, job.Description, job.Requirements, job.Slots, job.Status,
+		job.PublishAt, job.CloseAt, job.CreatedBy).
+		Scan(&id, &createdAt)
+	if err != nil {
+		return Job{}, fmt.Errorf("insert job: %w", err)
+	}
+
+	for _, skill := range skills {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO job_hard_skills (job_id, skill_name, weight)
+			VALUES ($1, $2, $3)`,
+			id, skill.SkillName, skill.Weight)
+		if err != nil {
+			return Job{}, fmt.Errorf("insert job hard skill: %w", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return Job{}, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	job.ID = id
+	job.CreatedAt = createdAt
+	return job, nil
+}
+
+// ListJobs retrieves jobs with filtering and pagination
+func (r *Repository) ListJobs(ctx context.Context, filter JobFilter) ([]Job, int, error) {
+	var conditions []string
+	var args []interface{}
+	argIdx := 1
+
+	if filter.Status != "" {
+		conditions = append(conditions, fmt.Sprintf("j.status = $%d", argIdx))
+		args = append(args, filter.Status)
+		argIdx++
+	}
+	if filter.Department != "" {
+		conditions = append(conditions, fmt.Sprintf("d.name ILIKE $%d", argIdx))
+		args = append(args, "%"+filter.Department+"%")
+		argIdx++
+	}
+	if filter.Search != "" {
+		conditions = append(conditions, fmt.Sprintf("(j.title ILIKE $%d OR j.description ILIKE $%d)", argIdx, argIdx))
+		args = append(args, "%"+filter.Search+"%")
+		argIdx++
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM jobs j JOIN departments d ON d.id = j.department_id %s", whereClause)
+	var total int
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count jobs: %w", err)
+	}
+
+	offset := (filter.Page - 1) * filter.Limit
+	dataQuery := fmt.Sprintf(`
+		SELECT j.id, j.title, j.department_id, j.employment_type_id, j.experience_level_id,
+		       j.form_id, j.description, j.requirements, j.slots, j.status, 
+		       j.publish_at, j.close_at, j.created_at, j.created_by
+		FROM jobs j
+		JOIN departments d ON d.id = j.department_id
+		%s
+		ORDER BY j.created_at DESC
+		LIMIT $%d OFFSET $%d`,
+		whereClause, argIdx, argIdx+1)
+
+	args = append(args, filter.Limit, offset)
+
+	rows, err := r.db.Query(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []Job
+	for rows.Next() {
+		var j Job
+		if err := rows.Scan(
+			&j.ID, &j.Title, &j.DepartmentID, &j.EmploymentTypeID, &j.ExperienceLevelID,
+			&j.FormID, &j.Description, &j.Requirements, &j.Slots, &j.Status,
+			&j.PublishAt, &j.CloseAt, &j.CreatedAt, &j.CreatedBy,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan job row: %w", err)
+		}
+		jobs = append(jobs, j)
+	}
+
+	return jobs, total, nil
+}
+
+// GetJobByID retrieves a job by ID with its hard skills
+func (r *Repository) GetJobByID(ctx context.Context, id string) (Job, []JobHardSkill, error) {
+	var job Job
+	var parsedID uuid.UUID
+	var err error
+
+	parsedID, err = uuid.Parse(id)
+	if err != nil {
+		return job, nil, fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	err = r.db.QueryRow(ctx, `
+		SELECT id, title, department_id, employment_type_id, experience_level_id,
+		       form_id, description, requirements, slots, status, 
+		       publish_at, close_at, created_at, created_by
+		FROM jobs WHERE id = $1`, parsedID).
+		Scan(&job.ID, &job.Title, &job.DepartmentID, &job.EmploymentTypeID, &job.ExperienceLevelID,
+			&job.FormID, &job.Description, &job.Requirements, &job.Slots, &job.Status,
+			&job.PublishAt, &job.CloseAt, &job.CreatedAt, &job.CreatedBy)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return job, nil, nil
+		}
+		return job, nil, fmt.Errorf("get job by id: %w", err)
+	}
+
+	skillRows, err := r.db.Query(ctx, `
+		SELECT id, job_id, skill_name, weight
+		FROM job_hard_skills WHERE job_id = $1`, parsedID)
+	if err != nil {
+		return job, nil, fmt.Errorf("get job hard skills: %w", err)
+	}
+	defer skillRows.Close()
+
+	var skills []JobHardSkill
+	for skillRows.Next() {
+		var skill JobHardSkill
+		if err := skillRows.Scan(&skill.ID, &skill.JobID, &skill.SkillName, &skill.Weight); err != nil {
+			return job, nil, fmt.Errorf("scan hard skill: %w", err)
+		}
+		skills = append(skills, skill)
+	}
+
+	return job, skills, nil
+}
+
+// UpdateJob updates a job and its hard skills in a transaction
+func (r *Repository) UpdateJob(ctx context.Context, id string, job Job, skills []JobHardSkill) (Job, error) {
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
+		return Job{}, fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return Job{}, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `
+		UPDATE jobs SET title = $1, department_id = $2, employment_type_id = $3, 
+		       experience_level_id = $4, form_id = $5, description = $6, 
+		       requirements = $7, slots = $8, status = $9, publish_at = $10, 
+		       close_at = $11, updated_at = NOW()
+		WHERE id = $12`,
+		job.Title, job.DepartmentID, job.EmploymentTypeID, job.ExperienceLevelID,
+		job.FormID, job.Description, job.Requirements, job.Slots, job.Status,
+		job.PublishAt, job.CloseAt, parsedID)
+	if err != nil {
+		return Job{}, fmt.Errorf("update job: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM job_hard_skills WHERE job_id = $1`, parsedID)
+	if err != nil {
+		return Job{}, fmt.Errorf("delete old skills: %w", err)
+	}
+
+	for _, skill := range skills {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO job_hard_skills (job_id, skill_name, weight)
+			VALUES ($1, $2, $3)`,
+			parsedID, skill.SkillName, skill.Weight)
+		if err != nil {
+			return Job{}, fmt.Errorf("insert job hard skill: %w", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return Job{}, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	job.ID = parsedID
+	return job, nil
+}
+
+// DeleteJob deletes a job by ID (only if not open)
+func (r *Repository) DeleteJob(ctx context.Context, id string) error {
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
+		return fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	var status string
+	err = r.db.QueryRow(ctx, `SELECT status FROM jobs WHERE id = $1`, parsedID).Scan(&status)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("job not found")
+		}
+		return fmt.Errorf("get job status: %w", err)
+	}
+
+	if status == "open" {
+		return fmt.Errorf("cannot delete open job")
+	}
+
+	_, err = r.db.Exec(ctx, `DELETE FROM jobs WHERE id = $1`, parsedID)
+	if err != nil {
+		return fmt.Errorf("delete job: %w", err)
+	}
+
+	return nil
 }

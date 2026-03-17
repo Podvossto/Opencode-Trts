@@ -62,3 +62,16 @@ func NotFound(c *gin.Context) {
 func InternalServerError(c *gin.Context) {
 	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal_server_error"})
 }
+
+// UnprocessableEntity sends a 422 response
+func UnprocessableEntity(c *gin.Context, details []ValidationError) {
+	c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+		Error:   "validation_error",
+		Details: details,
+	})
+}
+
+// NoContent sends a 204 response
+func NoContent(c *gin.Context) {
+	c.Status(http.StatusNoContent)
+}

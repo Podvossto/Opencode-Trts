@@ -1,7 +1,7 @@
 // Purpose: Jobs domain — route registration
 // Ref: API Contract — GET /api/v1/portal/jobs, GET /api/v1/portal/jobs/:id
 // ATS-012: Public portal endpoints (no auth)
-// Full job CRUD routes (Sprint 2) will be added later
+// ATS-026: Job CRUD routes (admin/HR only)
 package jobs
 
 import (
@@ -33,9 +33,18 @@ func RegisterRoutes(rg *gin.RouterGroup, db *pgxpool.Pool, rdb *redis.Client, cf
 		jobs.GET("/:id/dashboard", portalH.GetDashboardStats)
 	}
 
-	// TODO Sprint 2: Wire full job CRUD routes (admin/HR only) here
-	// admin := rg.Group("/jobs")
-	// admin.Use(middleware.AuthMiddleware(cfg, rdb))
-	// admin.Use(middleware.RequireRole("admin", "hr"))
-	// { ... }
+	// Admin/HR job CRUD routes (ATS-026)
+	admin := rg.Group("/jobs")
+	admin.Use(middleware.AuthMiddleware(cfg, rdb))
+	admin.Use(middleware.RequireRole("admin", "hr"))
+	{
+		jobSvc := NewJobService(repo)
+		jobH := NewJobHandler(jobSvc)
+
+		admin.POST("", jobH.CreateJob)
+		admin.GET("", jobH.ListJobs)
+		admin.GET("/:id", jobH.GetJobByID)
+		admin.PUT("/:id", jobH.UpdateJob)
+		admin.DELETE("/:id", jobH.DeleteJob)
+	}
 }
