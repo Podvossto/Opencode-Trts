@@ -7,6 +7,8 @@ package forms
 import (
 	"errors"
 	"log"
+	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -22,13 +24,27 @@ func NewFormHandler(svc FormService) *FormHandler {
 }
 
 func (h *FormHandler) ListForms(c *gin.Context) {
-	forms, err := h.svc.List(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	var published *bool
+	if p := c.Query("published"); p != "" {
+		isPub := p == "true"
+		published = &isPub
+	}
+
+	forms, total, err := h.svc.List(c.Request.Context(), page, limit, published)
 	if err != nil {
 		log.Printf("list forms error: %v", err)
 		response.InternalServerError(c)
 		return
 	}
-	response.OK(c, forms)
+	response.OK(c, ListResponse{
+		Forms: forms,
+		Total: total,
+		Page:  page,
+		Limit: limit,
+	})
 }
 
 func (h *FormHandler) GetForm(c *gin.Context) {
@@ -82,6 +98,14 @@ func (h *FormHandler) UpdateForm(c *gin.Context) {
 
 	form, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
+		if errors.Is(err, ErrFormNotFound) {
+			response.NotFound(c)
+			return
+		}
+		if errors.Is(err, ErrFormAlreadyPublished) {
+			c.JSON(http.StatusConflict, response.ErrorResponse{Error: "form already published"})
+			return
+		}
 		log.Printf("update form error: %v", err)
 		response.InternalServerError(c)
 		return
@@ -103,6 +127,10 @@ func (h *FormHandler) DeleteForm(c *gin.Context) {
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
 		if errors.Is(err, ErrFormNotFound) {
 			response.NotFound(c)
+			return
+		}
+		if errors.Is(err, ErrFormLinkedToJob) {
+			c.JSON(http.StatusConflict, response.ErrorResponse{Error: "Form is linked to active job(s)"})
 			return
 		}
 		log.Printf("delete form error: %v", err)

@@ -35,8 +35,8 @@ func NewFormService(db *pgxpool.Pool) FormService {
 	return &formService{repo: newFormRepository(db)}
 }
 
-func (s *formService) List(ctx context.Context) ([]ApplicationForm, error) {
-	return s.repo.List(ctx)
+func (s *formService) List(ctx context.Context, page, limit int, published *bool) ([]ApplicationForm, int, error) {
+	return s.repo.List(ctx, page, limit, published)
 }
 
 func (s *formService) GetByID(ctx context.Context, id uuid.UUID) (*ApplicationForm, error) {
@@ -110,12 +110,39 @@ func (s *formService) Publish(ctx context.Context, id uuid.UUID) (*ApplicationFo
 	return s.repo.Publish(ctx, id)
 }
 
-func (r *formRepository) List(ctx context.Context) ([]ApplicationForm, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id, name, form_schema, is_published, created_at, updated_at 
-		FROM application_forms ORDER BY created_at DESC`)
+func (r *formRepository) List(ctx context.Context, page, limit int, published *bool) ([]ApplicationForm, int, error) {
+	baseWhere := ""
+	var args []interface{}
+	argIdx := 1
+
+	if published != nil {
+		if *published {
+			baseWhere = fmt.Sprintf("WHERE is_published = true")
+		} else {
+			baseWhere = fmt.Sprintf("WHERE is_published = false")
+		}
+	}
+
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM application_forms %s", baseWhere)
+	var total int
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count forms: %w", err)
+	}
+
+	offset := (page - 1) * limit
+	dataQuery := fmt.Sprintf(`
+		SELECT id, name, form_schema, is_published, created_at, updated_at
+		FROM application_forms
+		%s
+		ORDER BY created_at DESC
+		LIMIT $%d OFFSET $%d`,
+		baseWhere, argIdx, argIdx+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, dataQuery, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list forms: %w", err)
+		return nil, 0, fmt.Errorf("list forms: %w", err)
 	}
 	defer rows.Close()
 
@@ -123,11 +150,11 @@ func (r *formRepository) List(ctx context.Context) ([]ApplicationForm, error) {
 	for rows.Next() {
 		var f ApplicationForm
 		if err := rows.Scan(&f.ID, &f.Name, &f.FormSchema, &f.IsPublished, &f.CreatedAt, &f.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan form: %w", err)
+			return nil, 0, fmt.Errorf("scan form: %w", err)
 		}
 		forms = append(forms, f)
 	}
-	return forms, nil
+	return forms, total, nil
 }
 
 func (r *formRepository) GetByID(ctx context.Context, id uuid.UUID) (*ApplicationForm, error) {
